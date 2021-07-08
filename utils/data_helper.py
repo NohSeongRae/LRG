@@ -181,6 +181,7 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
             g = nx.Graph()
             g.add_nodes_from(elem["nodes"])
             g.add_edges_from(elem["edges"])
+            g.remove_edges_from(nx.selfloop_edges(g))
             graphs.append(g)
     if graph_type == "grid":
         graphs = []
