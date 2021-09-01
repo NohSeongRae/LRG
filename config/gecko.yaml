@@ -52,7 +52,7 @@ train:
   is_resume: false
   resume_epoch: 5000
   resume_dir: # exp/GRAN/your_exp_folder
-  resume_model: model_snapshot_0005000.pth
+  resume_model: 
 test:
   batch_size: 20
   num_workers: 0
