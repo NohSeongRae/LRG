@@ -201,7 +201,6 @@ class GRANData(object):
 
         if type(tmp) == tuple:
             adj_list, node_feats_list = tmp
-
         else:
             adj_list = tmp
         num_nodes = adj_list[0].shape[0]
@@ -241,6 +240,7 @@ class GRANData(object):
             subgraph_size = []
             subgraph_idx = []
             att_idx = []
+            ground_truth_feats = []
             subgraph_count = 0
 
             for ii in range(len(adj_list)):
@@ -251,6 +251,8 @@ class GRANData(object):
                 idx = -1
                 for jj in range(0, num_nodes, S):
                     # loop over different subgraphs
+                    # one subgraph for each node (each row in the adj) minus the stride
+
                     idx += 1
 
                     ### for each size-(jj+K) subgraph, we generate edges for the new block of K nodes
@@ -261,6 +263,7 @@ class GRANData(object):
                         continue
 
                     ### get graph for GNN propagation
+                    ### Adj block contains the graph from start to the current row which is jj
                     adj_block = np.pad(
                         adj_full[:jj, :jj],
                         ((0, K), (0, K)),
@@ -315,6 +318,8 @@ class GRANData(object):
                         adj_full[idx_row_gnn, idx_col_gnn].flatten().astype(np.uint8)
                     ]
 
+                    ground_truth_feats += ground_truth_feats[idx_row_gnn]
+
                     subgraph_size += [jj + K]
                     subgraph_idx += [
                         np.ones_like(label[-1]).astype(np.int64) * subgraph_count
@@ -329,6 +334,11 @@ class GRANData(object):
 
             ### pack tensors
             data = {}
+
+            if self.node_feats is not None:
+                data["feats"] = np.stack(node_feats_list, axis=0)
+                data["ground_truth_feats"] = np.stack(ground_truth_feats, axis=0)
+
             data["adj"] = np.tril(np.stack(adj_list, axis=0), k=-1)
             data["edges"] = torch.cat(edges, dim=1).t().long()
             data["node_idx_gnn"] = np.concatenate(node_idx_gnn)
@@ -391,6 +401,21 @@ class GRANData(object):
                     axis=0,
                 )
             ).float()  # B X C X N X N
+
+            data["feats"] = torch.from_numpy(
+                np.stack(
+                    [
+                        np.pad(
+                            bb["feats"],
+                            ((0, 0), (0, pad_size[ii]), (0, pad_size[ii])),
+                            "constant",
+                            constant_values=0.0,
+                        )
+                        for ii, bb in enumerate(batch_pass)
+                    ],
+                    axis=0,
+                )
+            ).float()
 
             idx_base = np.array([0] + [bb["num_count"] for bb in batch_pass])
             idx_base = np.cumsum(idx_base)

@@ -274,6 +274,16 @@ class GranRunner(object):
                                 .pin_memory()
                                 .to(gpu_id, non_blocking=True)
                             )
+                            data["feats"] = (
+                                batch_data[dd][ff]["feats"]
+                                .pin_memory()
+                                .to(gpu_id, non_blocking=True)
+                            )
+                            data["ground_truth_feats"] = (
+                                batch_data[dd][ff]["ground_truth_feats"]
+                                .pin_memory()
+                                .to(gpu_id, non_blocking=True)
+                            )
                             data["edges"] = (
                                 batch_data[dd][ff]["edges"]
                                 .pin_memory()

@@ -244,6 +244,7 @@ class GRANMixtureBernoulli(nn.Module):
         node_idx_gnn=None,
         node_idx_feat=None,
         att_idx=None,
+        feats_pad=None,
     ):
         """ generate adj in row-wise auto-regressive fashion """
 
@@ -495,6 +496,18 @@ class GRANMixtureBernoulli(nn.Module):
             else None
         )
 
+        feats_pad = input_dict["feats"] if "feats" in input_dict else None
+        ground_truth_feats = (
+            input_dict["ground_truth_feats"]
+            if "ground_truth_feats" in input_dict
+            else None
+        )
+
+        print(ground_truth_feats.shape)
+        import sys
+
+        sys.exit(1)
+
         N_max = self.max_num_nodes
 
         if not is_sampling:
@@ -507,6 +520,7 @@ class GRANMixtureBernoulli(nn.Module):
                 node_idx_gnn=node_idx_gnn,
                 node_idx_feat=node_idx_feat,
                 att_idx=att_idx,
+                feats_pad=feats_pad,
             )
 
             num_edges = log_theta.shape[0]
