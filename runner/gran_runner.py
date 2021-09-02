@@ -109,9 +109,15 @@ class GranRunner(object):
             self.config.save_dir = self.train_conf.resume_dir
 
         ### load graphs
-        self.graphs = create_graphs(
-            config.dataset.name, data_dir=config.dataset.data_path
-        )
+
+        if config.dataset.name == "gecko":
+            self.graphs, self.feats = create_graphs(
+                config.dataset.name, data_dir=config.dataset.data_path
+            )
+        else:
+            self.graphs = create_graphs(
+                config.dataset.name, data_dir=config.dataset.data_path
+            )
 
         self.train_ratio = config.dataset.train_ratio
         self.dev_ratio = config.dataset.dev_ratio
@@ -130,13 +136,18 @@ class GranRunner(object):
         )
 
         ### shuffle all graphs
-        if self.is_shuffle:
-            self.npr = np.random.RandomState(self.seed)
-            self.npr.shuffle(self.graphs)
+
+        # TODO: allow to shuffle both graphs and feats
+        # if self.is_shuffle:
+        #     self.npr = np.random.RandomState(self.seed)
+        #     self.npr.shuffle(self.graphs)
 
         self.graphs_train = self.graphs[: self.num_train]
+        self.feats_train = self.feats[: self.num_train]
         self.graphs_dev = self.graphs[: self.num_dev]
+        self.feats_dev = self.feats[: self.num_dev]
         self.graphs_test = self.graphs[self.num_train :]
+        self.feats_test = self.feats[: self.num_train]
 
         self.config.dataset.sparse_ratio = compute_edge_ratio(self.graphs_train)
         logger.info(
@@ -175,7 +186,7 @@ class GranRunner(object):
     def train(self):
         ### create data loader
         train_dataset = eval(self.dataset_conf.loader_name)(
-            self.config, self.graphs_train, tag="train"
+            self.config, self.graphs_train, node_feats=self.feats_train, tag="train"
         )
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
