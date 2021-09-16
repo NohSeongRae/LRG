@@ -296,7 +296,7 @@ class GRANMixtureBernoulli(nn.Module):
             node_feat[node_idx_feat], edges, edge_feat=att_edge_feat
         )
 
-        out = self.output_head(node_feat[node_idx_feat])
+        out = self.output_head(node_state)
 
         ### Pairwise predict edges
         diff = node_state[node_idx_gnn[:, 0], :] - node_state[node_idx_gnn[:, 1], :]
@@ -306,7 +306,7 @@ class GRANMixtureBernoulli(nn.Module):
         log_theta = log_theta.view(-1, self.num_mix_component)  # B X CN(N-1)/2 X K
         log_alpha = log_alpha.view(-1, self.num_mix_component)  # B X CN(N-1)/2 X K
 
-        return log_theta, log_alpha
+        return log_theta, log_alpha, out
 
     def _sampling(self, B):
         """ generate adj in row-wise auto-regressive fashion """
@@ -496,17 +496,7 @@ class GRANMixtureBernoulli(nn.Module):
             else None
         )
 
-        feats_pad = input_dict["feats"] if "feats" in input_dict else None
-        ground_truth_feats = (
-            input_dict["ground_truth_feats"]
-            if "ground_truth_feats" in input_dict
-            else None
-        )
-
-        print(ground_truth_feats.shape)
-        import sys
-
-        sys.exit(1)
+        feats = input_dict["feats"] if "feats" in input_dict else None
 
         N_max = self.max_num_nodes
 
@@ -514,13 +504,13 @@ class GRANMixtureBernoulli(nn.Module):
             B, _, N, _ = A_pad.shape
 
             ### compute adj loss
-            log_theta, log_alpha = self._inference(
+            log_theta, log_alpha, out = self._inference(
                 A_pad=A_pad,
                 edges=edges,
                 node_idx_gnn=node_idx_gnn,
                 node_idx_feat=node_idx_feat,
                 att_idx=att_idx,
-                feats_pad=feats_pad,
+                feats_pad=feats,
             )
 
             num_edges = log_theta.shape[0]
@@ -535,7 +525,10 @@ class GRANMixtureBernoulli(nn.Module):
                 self.num_canonical_order,
             )
 
-            return adj_loss
+            mae = nn.L1Loss()
+            mae_val = mae(out, feats[0, 0, node_idx_feat, :])
+
+            return adj_loss + mae_val
         else:
             A = self._sampling(batch_size)
 

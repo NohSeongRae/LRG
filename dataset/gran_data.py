@@ -56,7 +56,7 @@ class GRANData(object):
             self.config.dataset.save_path = self.save_path
             for index in tqdm(range(self.num_graphs)):
                 G = self.graphs[index]
-                data = self._get_graph_data(G, node_feats=self.node_feats)
+                data = self._get_graph_data(G, node_feats=self.node_feats[index])
                 tmp_path = os.path.join(self.save_path, "{}_{}.p".format(tag, index))
                 pickle.dump(data, open(tmp_path, "wb"))
                 self.file_names += [tmp_path]
@@ -202,8 +202,10 @@ class GRANData(object):
         if type(tmp) == tuple:
             adj_list, node_feats_list = tmp
         else:
-            adj_list = tmp
+            (adj_list,) = (tmp,)
         num_nodes = adj_list[0].shape[0]
+
+        # Number of subgraph: (n_rows-block_size)/stride + 1
         num_subgraphs = int(np.floor((num_nodes - K) / S) + 1)
 
         if self.is_sample_subgraph:
@@ -318,7 +320,7 @@ class GRANData(object):
                         adj_full[idx_row_gnn, idx_col_gnn].flatten().astype(np.uint8)
                     ]
 
-                    ground_truth_feats += ground_truth_feats[idx_row_gnn]
+                    ground_truth_feats.append(node_feats_list[ii][: jj + K, :])
 
                     subgraph_size += [jj + K]
                     subgraph_idx += [
@@ -337,7 +339,7 @@ class GRANData(object):
 
             if self.node_feats is not None:
                 data["feats"] = np.stack(node_feats_list, axis=0)
-                data["ground_truth_feats"] = np.stack(ground_truth_feats, axis=0)
+                # data["feats"] = np.stack(ground_truth_feats, axis=0)
 
             data["adj"] = np.tril(np.stack(adj_list, axis=0), k=-1)
             data["edges"] = torch.cat(edges, dim=1).t().long()

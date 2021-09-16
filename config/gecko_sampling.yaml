@@ -51,8 +51,8 @@ train:
   shuffle: true
   is_resume: true
   resume_epoch: 5000
-  resume_dir: exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-01-12-18-44_3251158
-  resume_model: model_snapshot_0000010.pth
+  resume_dir: exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-16-12-12-18_29123
+  resume_model: model_snapshot_0000001.pth
 test:
   batch_size: 20
   num_workers: 0
@@ -63,6 +63,6 @@ test:
   num_vis: 20
   vis_num_row: 5 # visualize `num_vis` samples in `vis_num_row` rows
   better_vis: true
-  test_model_dir: exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-01-15-16-51_3304803
-  test_model_name: model_snapshot_0000030.pth
-  test_model: exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-01-15-16-51_3304803/model_snapshot_0000030.pth
+  test_model_dir: exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-16-12-12-18_29123
+  test_model_name: model_snapshot_0000001.pth
+  test_model: exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-16-12-12-18_29123/model_snapshot_0000001.pth

@@ -1,5 +1,5 @@
 ---
-exp_name: GRAN
+exp_name: GRAN_featurepred
 exp_dir: exp/GRAN
 runner: GranRunner
 use_horovod: false
@@ -43,7 +43,7 @@ train:
   max_epoch: 3000
   batch_size: 1
   display_iter: 10
-  snapshot_epoch: 10
+  snapshot_epoch: 1
   valid_epoch: 10
   lr: 1.0e-4
   wd: 0.0e-4

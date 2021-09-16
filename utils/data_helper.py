@@ -172,21 +172,23 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
     npr = np.random.RandomState(seed)
     ### load datasets
     graphs = []
+    feats = []
     # synthetic graphs
 
     if graph_type == "gecko":
 
-        # data = json.load(
-        #     open(os.path.join(data_dir, "gecko_65_layer2_energy.json"), "r")
-        # )
         with open(os.path.join(data_dir, "layer2_65_feats.pickle"), "rb") as handle:
             data = pickle.load(handle)
+
+            data = data[:100]
         for elem in data:
             g = nx.Graph()
             g.add_nodes_from(elem["nodes"])
             g.add_edges_from(elem["edges"])
             g.remove_edges_from(nx.selfloop_edges(g))
-            feats = elem["feats"]
+            feats_ = elem["feats"]
+            feats_ = feats_ / feats_.sum(axis=1, keepdims=1)
+            feats.append(feats_)
             graphs.append(g)
     if graph_type == "grid":
         graphs = []
@@ -248,7 +250,7 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
         )
     )
 
-    if feats is not None:
+    if len(feats) > 0:
         return graphs, feats
     else:
         return graphs
