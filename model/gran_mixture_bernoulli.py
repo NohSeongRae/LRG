@@ -323,6 +323,7 @@ class GRANMixtureBernoulli(nn.Module):
                 N_pad = N
 
             A = torch.zeros(B, N_pad, N_pad).to(self.device)
+            features_out = torch.zeros(B, N_pad, 3).to(self.device)
             dim_input = (
                 self.embedding_dim if self.dimension_reduce else self.max_num_nodes
             )
@@ -401,6 +402,9 @@ class GRANMixtureBernoulli(nn.Module):
                 )
                 node_state_out = node_state_out.view(B, jj, -1)
 
+                out = self.output_head(node_state_out)
+                features_out[:, ii:jj] = out
+
                 idx_row, idx_col = np.meshgrid(np.arange(ii, jj), np.arange(jj))
                 idx_row = torch.from_numpy(idx_row.reshape(-1)).long().to(self.device)
                 idx_col = torch.from_numpy(idx_col.reshape(-1)).long().to(self.device)
@@ -435,7 +439,7 @@ class GRANMixtureBernoulli(nn.Module):
                 A = torch.tril(A, diagonal=-1)
                 A = A + A.transpose(1, 2)
 
-            return A
+            return A, features_out
 
     def forward(self, input_dict):
         """
@@ -530,7 +534,7 @@ class GRANMixtureBernoulli(nn.Module):
 
             return adj_loss + mae_val
         else:
-            A = self._sampling(batch_size)
+            A, features_out = self._sampling(batch_size)
 
             ### sample number of nodes
             num_nodes_pmf = torch.from_numpy(num_nodes_pmf).to(self.device)
@@ -541,7 +545,10 @@ class GRANMixtureBernoulli(nn.Module):
             A_list = [
                 A[ii, : num_nodes[ii], : num_nodes[ii]] for ii in range(batch_size)
             ]
-            return A_list
+            features_out_list = [
+                features_out[ii, : num_nodes[ii], :] for ii in range(batch_size)
+            ]
+            return A_list, features_out_list
 
 
 def mixture_bernoulli_loss(

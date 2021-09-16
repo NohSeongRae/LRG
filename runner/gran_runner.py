@@ -398,7 +398,7 @@ class GranRunner(object):
                     input_dict["is_sampling"] = True
                     input_dict["batch_size"] = self.test_conf.batch_size
                     input_dict["num_nodes_pmf"] = self.num_nodes_pmf_train
-                    A_tmp = model(input_dict)
+                    A_tmp, features_tmp = model(input_dict)
                     gen_run_time += [time.time() - start_time]
                     A_pred += [aa.data.cpu().numpy() for aa in A_tmp]
                     num_nodes_pred += [aa.shape[0] for aa in A_tmp]
