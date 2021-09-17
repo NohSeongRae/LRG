@@ -58,7 +58,7 @@ def compute_edge_ratio(G_list):
     return ratio
 
 
-def get_graph(adj):
+def get_graph(adj, feats=None):
     """ get a graph from zero-padded adj """
     # remove all zeros rows and columns
     adj = adj[~np.all(adj == 0, axis=1)]
@@ -263,6 +263,8 @@ class GranRunner(object):
                         iter_count += 1
 
                 avg_train_loss = 0.0
+                avg_train_loss_adj = 0.0
+                avg_train_loss_mae = 0.0
                 for ff in range(self.dataset_conf.num_fwd_pass):
                     batch_fwd = []
 
@@ -318,7 +320,13 @@ class GranRunner(object):
                             batch_fwd.append((data,))
 
                     if batch_fwd:
-                        train_loss = model(*batch_fwd).mean()
+                        train_loss_adj, train_loss_mae = model(*batch_fwd)
+                        train_loss_adj = train_loss_adj.mean()
+                        train_loss_mae = train_loss_mae.mean()
+
+                        train_loss = train_loss_adj + train_loss_mae
+                        avg_train_loss_adj += train_loss_adj.cpu().data.numpy()
+                        avg_train_loss_mae += train_loss_mae.cpu().data.numpy()
                         avg_train_loss += train_loss
 
                         # assign gradient
@@ -327,17 +335,24 @@ class GranRunner(object):
                 # clip_grad_norm_(model.parameters(), 5.0e-0)
                 optimizer.step()
                 avg_train_loss /= float(self.dataset_conf.num_fwd_pass)
+                train_loss_mae /= float(self.dataset_conf.num_fwd_pass)
+                train_loss_adj /= float(self.dataset_conf.num_fwd_pass)
 
                 # reduce
                 train_loss = float(avg_train_loss.data.cpu().numpy())
 
                 self.writer.add_scalar("train_loss", train_loss, iter_count)
+                self.writer.add_scalar("train_loss_adj", train_loss_adj, iter_count)
+                self.writer.add_scalar("train_loss_mae", train_loss_mae, iter_count)
+
                 results["train_loss"] += [train_loss]
+                results["train_loss_mae"] += [train_loss_mae]
+                results["train_loss_adj"] += [train_loss]
                 results["train_step"] += [iter_count]
 
                 if iter_count % self.train_conf.display_iter == 0 or iter_count == 1:
                     logger.info(
-                        "NLL Loss @ epoch {:04d} iteration {:08d} = {}".format(
+                        "Loss @ epoch {:04d} iteration {:08d} = {}".format(
                             epoch + 1, iter_count, train_loss
                         )
                     )
@@ -387,6 +402,7 @@ class GranRunner(object):
 
             ### Generate Graphs
             A_pred = []
+            feats_pred = []
             num_nodes_pred = []
             num_test_batch = int(np.ceil(self.num_test_gen / self.test_conf.batch_size))
 
@@ -398,16 +414,25 @@ class GranRunner(object):
                     input_dict["is_sampling"] = True
                     input_dict["batch_size"] = self.test_conf.batch_size
                     input_dict["num_nodes_pmf"] = self.num_nodes_pmf_train
-                    A_tmp, features_tmp = model(input_dict)
+                    A_tmp, feats_tmp = model(input_dict)
                     gen_run_time += [time.time() - start_time]
                     A_pred += [aa.data.cpu().numpy() for aa in A_tmp]
+                    feats_pred += [aa.data.cpu().numpy() for aa in feats_tmp]
                     num_nodes_pred += [aa.shape[0] for aa in A_tmp]
 
             logger.info(
                 "Average test time per mini-batch = {}".format(np.mean(gen_run_time))
             )
 
-            graphs_gen = [get_graph(aa) for aa in A_pred]
+            graphs_gen = [
+                get_graph(A_pred[i], feats=feats_pred[i]) for i in range(len(A_pred))
+            ]
+
+        save_name = os.path.join(self.config.save_dir, "out_feats.pickle")
+        with open(save_name, "wb") as outfile:
+            pickle.dump(
+                feats_pred, outfile,
+            )
 
         ### Visualize Generated Graphs
         if self.is_vis:

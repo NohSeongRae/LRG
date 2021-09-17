@@ -244,7 +244,6 @@ class GRANMixtureBernoulli(nn.Module):
         node_idx_gnn=None,
         node_idx_feat=None,
         att_idx=None,
-        feats_pad=None,
     ):
         """ generate adj in row-wise auto-regressive fashion """
 
@@ -402,9 +401,6 @@ class GRANMixtureBernoulli(nn.Module):
                 )
                 node_state_out = node_state_out.view(B, jj, -1)
 
-                out = self.output_head(node_state_out)
-                features_out[:, ii:jj] = out
-
                 idx_row, idx_col = np.meshgrid(np.arange(ii, jj), np.arange(jj))
                 idx_row = torch.from_numpy(idx_row.reshape(-1)).long().to(self.device)
                 idx_col = torch.from_numpy(idx_col.reshape(-1)).long().to(self.device)
@@ -434,6 +430,8 @@ class GRANMixtureBernoulli(nn.Module):
                 prob = torch.stack(prob, dim=0)
                 A[:, ii:jj, :jj] = torch.bernoulli(prob[:, : jj - ii, :])
 
+            out = self.output_head(node_state_out)
+            features_out = out
             ### make it symmetric
             if self.is_sym:
                 A = torch.tril(A, diagonal=-1)
@@ -505,7 +503,7 @@ class GRANMixtureBernoulli(nn.Module):
         N_max = self.max_num_nodes
 
         if not is_sampling:
-            B, _, N, _ = A_pad.shape
+            B, C, N, _ = A_pad.shape
 
             ### compute adj loss
             log_theta, log_alpha, out = self._inference(
@@ -514,7 +512,6 @@ class GRANMixtureBernoulli(nn.Module):
                 node_idx_gnn=node_idx_gnn,
                 node_idx_feat=node_idx_feat,
                 att_idx=att_idx,
-                feats_pad=feats,
             )
 
             num_edges = log_theta.shape[0]
@@ -529,10 +526,11 @@ class GRANMixtureBernoulli(nn.Module):
                 self.num_canonical_order,
             )
 
-            mae = nn.L1Loss()
-            mae_val = mae(out, feats[0, 0, node_idx_feat, :])
+            feats = feats.view(B * N * C, -1)
 
-            return adj_loss + mae_val
+            mae_loss = self.node_output_loss_func(out, feats[node_idx_feat, :])
+
+            return adj_loss, mae_loss
         else:
             A, features_out = self._sampling(batch_size)
 

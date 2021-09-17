@@ -180,7 +180,7 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
         with open(os.path.join(data_dir, "layer2_65_feats.pickle"), "rb") as handle:
             data = pickle.load(handle)
 
-            data = data[:100]
+            # data = data[:1000]
         for elem in data:
             g = nx.Graph()
             g.add_nodes_from(elem["nodes"])
