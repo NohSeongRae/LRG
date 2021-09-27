@@ -63,6 +63,6 @@ test:
   num_vis: 20
   vis_num_row: 5 # visualize `num_vis` samples in `vis_num_row` rows
   better_vis: true
-  test_model_dir: exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-01-15-16-51_3304803
-  test_model_name: model_snapshot_0000030.pth
-  test_model: exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-01-15-16-51_3304803/model_snapshot_0000030.pth
+  test_model_dir: /home/paliotta/projects/gran/exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-23-11-06-02_1224433
+  test_model_name: model_snapshot_0000001.pth
+  test_model: /home/paliotta/projects/gran/exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-23-11-06-02_1224433/model_snapshot_0000001.pth

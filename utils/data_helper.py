@@ -8,6 +8,7 @@ import torch
 import pickle
 import json
 
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 from scipy import sparse as sp
 import networkx as nx
@@ -187,7 +188,7 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
             g.add_edges_from(elem["edges"])
             g.remove_edges_from(nx.selfloop_edges(g))
             feats_ = elem["feats"]
-            feats_ = feats_ / feats_.sum(axis=1, keepdims=1)
+            feats_ = StandardScaler().fit_transform(feats_)
             feats.append(feats_)
             graphs.append(g)
     if graph_type == "grid":

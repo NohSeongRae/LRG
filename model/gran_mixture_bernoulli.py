@@ -235,7 +235,7 @@ class GRANMixtureBernoulli(nn.Module):
         self.adj_loss_func = nn.BCEWithLogitsLoss(
             pos_weight=pos_weight, reduction="none"
         )
-        self.node_output_loss_func = nn.L1Loss()
+        self.node_output_loss_func = nn.MSELoss()
 
     def _inference(
         self,
