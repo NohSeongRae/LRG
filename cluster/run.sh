@@ -6,7 +6,7 @@
 #SBATCH --output=slurm.out
 #SBATCH --error=slurm.err
 #SBATCH --time=00:15:00
-#SBATCH --gres=gpu:pascal:2
+#SBATCH --gres=gpu:ampere:2
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=2
 

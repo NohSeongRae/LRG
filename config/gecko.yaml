@@ -5,7 +5,7 @@ runner: GranRunner
 use_horovod: false
 use_gpu: true
 device: cuda:0
-gpus: [0]
+gpus: [0, 1]
 seed: 1234
 dataset:
   loader_name: GRANData

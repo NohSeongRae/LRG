@@ -110,14 +110,10 @@ class GranRunner(object):
 
         ### load graphs
 
-        if config.dataset.name == "gecko":
-            self.graphs, self.feats = create_graphs(
-                config.dataset.name, data_dir=config.dataset.data_path
-            )
-        else:
-            self.graphs = create_graphs(
-                config.dataset.name, data_dir=config.dataset.data_path
-            )
+        
+        self.graphs, self.feats = create_graphs(
+            config.dataset.name, data_dir=config.dataset.data_path
+        )
 
         self.train_ratio = config.dataset.train_ratio
         self.dev_ratio = config.dataset.dev_ratio

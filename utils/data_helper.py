@@ -191,52 +191,6 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
             feats_ = StandardScaler().fit_transform(feats_)
             feats.append(feats_)
             graphs.append(g)
-    if graph_type == "grid":
-        graphs = []
-        for i in range(10, 20):
-            for j in range(10, 20):
-                graphs.append(nx.grid_2d_graph(i, j))
-    elif graph_type == "lobster":
-        graphs = []
-        p1 = 0.7
-        p2 = 0.7
-        count = 0
-        min_node = 10
-        max_node = 100
-        max_edge = 0
-        mean_node = 80
-        num_graphs = 100
-
-        seed_tmp = seed
-        while count < num_graphs:
-            G = nx.random_lobster(mean_node, p1, p2, seed=seed_tmp)
-            if len(G.nodes()) >= min_node and len(G.nodes()) <= max_node:
-                graphs.append(G)
-                if G.number_of_edges() > max_edge:
-                    max_edge = G.number_of_edges()
-
-                count += 1
-
-            seed_tmp += 1
-    elif graph_type == "DD":
-        graphs = graph_load_batch(
-            data_dir,
-            min_num_nodes=100,
-            max_num_nodes=500,
-            name="DD",
-            node_attributes=False,
-            graph_labels=True,
-        )
-        # args.max_prev_node = 230
-    elif graph_type == "FIRSTMM_DB":
-        graphs = graph_load_batch(
-            data_dir,
-            min_num_nodes=0,
-            max_num_nodes=10000,
-            name="FIRSTMM_DB",
-            node_attributes=False,
-            graph_labels=True,
-        )
 
     num_nodes = [gg.number_of_nodes() for gg in graphs]
     num_edges = [gg.number_of_edges() for gg in graphs]
