@@ -235,7 +235,7 @@ class GRANMixtureBernoulli(nn.Module):
         self.adj_loss_func = nn.BCEWithLogitsLoss(
             pos_weight=pos_weight, reduction="none"
         )
-        self.node_output_loss_func = nn.MSELoss()
+        self.node_output_loss_func = nn.L1Loss()
 
     def _inference(
         self,
@@ -261,7 +261,7 @@ class GRANMixtureBernoulli(nn.Module):
         # pad zero as node feature for newly generated nodes (1st row)
         node_feat = F.pad(
             node_feat, (0, 0, 1, 0), "constant", value=0.0
-        )  # (BCN_max + 1) X N_max
+        )  # (BCN_max + 1) X N_max(or H)
 
         # create symmetry-breaking edge feature for the newly generated nodes
         att_idx = att_idx.view(-1, 1)
@@ -528,7 +528,7 @@ class GRANMixtureBernoulli(nn.Module):
 
             feats = feats.view(B * N * C, -1)
 
-            mae_loss = self.node_output_loss_func(out, feats[node_idx_feat, :])
+            mae_loss = self.node_output_loss_func(out, feats[node_idx_feat])
 
             return adj_loss, mae_loss
         else:

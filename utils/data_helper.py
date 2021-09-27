@@ -170,7 +170,6 @@ def graph_load_batch(
 
 
 def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
-    npr = np.random.RandomState(seed)
     ### load datasets
     graphs = []
     feats = []
@@ -178,17 +177,16 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
 
     if graph_type == "gecko":
 
-        with open(os.path.join(data_dir, "layer2_65_feats.pickle"), "rb") as handle:
+        with open(os.path.join(data_dir, "layer2_65_feats_std.pickle"), "rb") as handle:
             data = pickle.load(handle)
 
-            # data = data[:1000]
+            # data = data[:100]
         for elem in data:
             g = nx.Graph()
             g.add_nodes_from(elem["nodes"])
             g.add_edges_from(elem["edges"])
             g.remove_edges_from(nx.selfloop_edges(g))
             feats_ = elem["feats"]
-            feats_ = StandardScaler().fit_transform(feats_)
             feats.append(feats_)
             graphs.append(g)
 

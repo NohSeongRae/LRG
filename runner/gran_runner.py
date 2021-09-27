@@ -110,7 +110,6 @@ class GranRunner(object):
 
         ### load graphs
 
-        
         self.graphs, self.feats = create_graphs(
             config.dataset.name, data_dir=config.dataset.data_path
         )
@@ -320,7 +319,7 @@ class GranRunner(object):
                         train_loss_adj = train_loss_adj.mean()
                         train_loss_mae = train_loss_mae.mean()
 
-                        train_loss = train_loss_adj + train_loss_mae
+                        train_loss = train_loss_mae + 0.1 * train_loss_adj
                         avg_train_loss_adj += train_loss_adj.cpu().data.numpy()
                         avg_train_loss_mae += train_loss_mae.cpu().data.numpy()
                         avg_train_loss += train_loss
@@ -374,7 +373,7 @@ class GranRunner(object):
     def test(self):
         self.config.save_dir = self.test_conf.test_model_dir
 
-        ### Compute Erdos-Renyi baseline
+        ### Compute Erdos-Renyi baselne
         if self.config.test.is_test_ER:
             p_ER = sum([aa.number_of_edges() for aa in self.graphs_train]) / sum(
                 [aa.number_of_nodes() ** 2 for aa in self.graphs_train]

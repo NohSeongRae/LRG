@@ -37,7 +37,7 @@ class GRANData(object):
 
         self.save_path = os.path.join(
             self.data_path,
-            "{}_{}_{}_{}_{}_{}_{}_precompute".format(
+            "{}_{}_{}_{}_{}_{}_{}_precompute_small".format(
                 config.model.name,
                 config.dataset.name,
                 tag,
@@ -221,7 +221,7 @@ class GRANData(object):
             num_subgraphs_pass = int(np.floor(num_subgraphs / self.num_fwd_pass))
             end_idx = num_subgraphs
 
-        ### random permute subgraph
+        ### random permute subgraphs
         rand_perm_idx = self.npr.permutation(num_subgraphs).tolist()
 
         start_time = time.time()
@@ -242,8 +242,8 @@ class GRANData(object):
             subgraph_size = []
             subgraph_idx = []
             att_idx = []
-            ground_truth_feats = []
             subgraph_count = 0
+            # ground_truth_feats = []
 
             for ii in range(len(adj_list)):
                 # loop over different orderings
@@ -320,7 +320,7 @@ class GRANData(object):
                         adj_full[idx_row_gnn, idx_col_gnn].flatten().astype(np.uint8)
                     ]
 
-                    ground_truth_feats.append(node_feats_list[ii][: jj + K, :])
+                    # ground_truth_feats.append(node_feats_list[ii][: jj + K, :])
 
                     subgraph_size += [jj + K]
                     subgraph_idx += [
@@ -409,7 +409,7 @@ class GRANData(object):
                     [
                         np.pad(
                             bb["feats"],
-                            ((0, 0), (0, pad_size[ii]), (0, pad_size[ii])),
+                            ((0, 0), (0, pad_size[ii]), (0, 0)),
                             "constant",
                             constant_values=0.0,
                         )
