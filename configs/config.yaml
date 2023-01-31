@@ -1,0 +1,34 @@
+# name
+name: 'road_gen_model'
+
+# directory
+data_dir: './datasets/cities/'
+data_norm_dir: './datasets/cities/norm'
+
+# model options
+model:
+    gen:
+      # encoder
+      enc_in_dim: 12    #input dimension
+      enc_nf: 64    #feature?
+      latent_dim: 128    #latent dimension
+
+
+# training arguments:
+manualSeed: 1777    #for generative model
+num_workers: 8
+batch_size: 8
+lr_gen: 0.0001
+weight_decay: 0.0001
+max_epoch: 10
+
+# weight for objective function
+rec_w: 1    #reconstruction loss
+reg_w : 1    #regularization loss
+top_w : 0.5    #topological fidelity loss
+geo_w : 0.5    #geometrical fidelity loss
+urb_w : 1    #urban planning loss
+
+# step size
+log_every: 5  #iter
+save_every: 5 #epoch
