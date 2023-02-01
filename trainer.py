@@ -48,7 +48,7 @@ class Trainer(nn.Module):
                 gen_loss_total, gen_loss_dict = self.compute_gen_loss(road)
                 self.gen_opt.zero_grad()
                 gen_loss_total.backward()
-                nn.utils.clip_grad_norm(self.gen.parameters(), 1.0)
+                nn.utils.clip_grad_norm(self.gen.parameters(), 1.0) #뭘까요?
                 self.gen_opt.step()
                 update_average(self.gen_ema, self.gen)
 
@@ -117,7 +117,7 @@ class Trainer(nn.Module):
         gen_path = os.path.join(self.model_dir, 'gen_%03d.pt' % epoch)
 
         raw_gen = self.gen.module if hasattr(self.gen, "module") else self.gen
-        raw_gen_ema = self.gen_ema.module if hasattr(self.gen_ema, "module") else self.gen_ema
+        raw_gen_ema = self.gen_ema.module if hasattr(self.gen_ema, "module") else self.gen_ema #확인해봐야함
 
         logger.info("saving %s", gen_path)
         torch.save({'gen': raw_gen.state_dict(), 'gen_ema': raw_gen_ema.state_dict()}, gen_path)
