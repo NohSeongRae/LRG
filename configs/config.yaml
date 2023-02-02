@@ -1,7 +1,9 @@
 # name
 name: 'road_gen_model'
+city_name: "atlanta"
 
 # directory
+data_original_dir: './datasets/cities/original'
 data_dir: './datasets/cities/'
 data_norm_dir: './datasets/cities/norm'
 
