@@ -18,7 +18,8 @@ class GAE(nn.Module):
         self.decoder=decoder
         self.apply(self._init_weights)
 
-    def forward
+    def forward(self):
+        pass
 
 
 
@@ -53,9 +54,9 @@ class Encoder(nn.Module):
                         channels,
                         graph_cfg):
         super().__init__()
-        self.conv1=GraphConv(in_channels, channels) #please implement in /net/blocks
-        self.gcn_mean=GraphConv(in_channels, channels)
-        self.gcn_logstddev = GraphConv(in_channels, channels)
+        # self.conv1=GraphConv(in_channels, channels) #please implement in /net/blocks
+        # self.gcn_mean=GraphConv(in_channels, channels)
+        # self.gcn_logstddev = GraphConv(in_channels, channels)
         #self.pool=NDP
 
     def forward(self, g, in_feat):
@@ -75,7 +76,7 @@ class Decoder(nn.Module):
                         latent_dim,
                         graph_cfg):
         super().__init__()
-        self.conv1 = GraphConv(in_channels, channels)  # please implement in /net/blocks
+        # self.conv1 = GraphConv(in_channels, channels)  # please implement in /net/blocks
         #self.unpool=in_ndp
     def forward(self, z,in_channels,
                         channels,
