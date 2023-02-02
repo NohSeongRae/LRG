@@ -6,8 +6,11 @@ import scipy.sparse as sp
 from scipy.sparse.linalg import eigsh
 import torch
 from torch import nn
+from torch.nn import Linear, Parameter
+from torch_geometric.nn import MessagePassing
+from torch_geometric.utils import add_self_loops, degree
 
-sys.path.append('./net')
+
 
 
 def NDP(A_list, level, sparsify=1e-2):
