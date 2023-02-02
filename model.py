@@ -8,6 +8,18 @@ import torch.nn.functional as F
 import dgl
 import dgl.function as fn
 from dgl.nn.pytorch.conv import GraphConv
+from dgl.nn.pytorch import linear
+#base class
+class GAE(nn.Module):
+    def __init__(self, encoder, decoder):
+        super().__init__()
+        self.pre=nn.Linear()
+        self.encoder=encoder
+        self.decoder=decoder
+        self.apply(self._init_weights)
+
+    def forward
+
 
 
 class Generator(nn.Module):
