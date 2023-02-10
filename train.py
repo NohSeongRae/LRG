@@ -1,52 +1,44 @@
-from etc.utils import set_seed, ensure_dirs, get_config
-from dataloader import get_dataloader
-from torch.utils.tensorboard import SummaryWriter
-from trainer import Trainer
 import argparse
-import shutil
-import os
-import sys
+import tensorflow as tf
+from trainer import results_to_file, run_experiment
+from blocks import NDP
 
-BASEPATH = os.path.dirname(__file__)
-
-sys.path.insert(0, BASEPATH)
-
-
-def initialize_path(args, config, save=True):
-    config['main_dir'] = os.path.join('.', config['name'])
-    config['model_dir'] = os.path.join(config['main_dir'], "pth")
-    config['tb_dir'] = os.path.join(config['main_dir'], "log")
-    config['info_dir'] = os.path.join(config['main_dir'], "info")
-    config['output_dir'] = os.path.join(config['main_dir'], "output")
-    ensure_dirs([config['main_dir'], config['model_dir'], config['tb_dir'], config['info_dir'], config['output_dir']])
-
-    if save:
-        shutil.copy(args.config, os.path.join(config['info_dir'], 'config.yaml'))
-
-
+# initialize args
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', type=str, default='configs/config.yaml', help='Path to the config file.')
+parser.add_argument("--name", type=str, default="Grid2d")
+parser.add_argument("--lr", type=float, default=5e-4)
+parser.add_argument("--patience", type=int, default=1000)
+parser.add_argument("--tol", type=float, default=1e-6)
+parser.add_argument("--runs", type=int, default=3)
 args = parser.parse_args()
 
-# initialize
-config = get_config(args.config)
-initialize_path(args, config)
 
-# random seed
-print("Random Seed: ", config['manualSeed'])
-set_seed(config['manualSeed'])
+# preprocess for NDP
+def preprocess(X, A):
+    return X, A
 
-# Dataloader
-train_src_loader = get_dataloader('train', config)
-train_tar_loader = get_dataloader('train', config)
-loader = {'train_src': train_src_loader, 'train_tar': train_tar_loader}
 
-# summary writer
-train_writer = SummaryWriter(os.path.join(config['tb_dir'], 'train'))
+# pooling sequence - this implementation allows eigsh during pre-processing
+def pooling(X, A):
+    """
 
-# trainer
-trainer = Trainer(config)
-tr_info = open(os.path.join(config['info_dir'], "info-network"), "w")
-print(trainer.gen, file=tr_info)
-tr_info.close()
-trainer.train(loader, train_writer)
+    :param X: node feature matrix
+    :param A: adjacency matrix
+    :return: A: initial adj matrix, X: node feature matrix, A_out[0]: pooled adj matrix, S_out[0]: Selection matrix
+    """
+    _, L = preprocess(X, A)
+    A_out, S_out = NDP([L], 1)
+    return A, X, A_out[0], S_out[0]
+
+
+results = run_experiment(
+    name=args.name,
+    method="NDP",
+    pooling=pooling,
+    learning_rate=args.lr,
+    es_patience=args.patience,
+    es_tol=args.tol,
+    runs=args.runs,
+)
+
+results_to_file(args.name, "NDP", *results)

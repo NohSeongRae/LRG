@@ -4,11 +4,6 @@ import warnings
 import numpy as np
 import scipy.sparse as sp
 from scipy.sparse.linalg import eigsh
-import torch
-from torch import nn
-from torch.nn import Linear, Parameter
-from torch_geometric.nn import MessagePassing
-from torch_geometric.utils import add_self_loops, degree
 
 
 

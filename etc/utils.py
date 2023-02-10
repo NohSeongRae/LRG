@@ -1,9 +1,14 @@
 import random
 import numpy as np
-import yaml
 import os
-import torch
+import tensorflow as tf
+import scipy.sparse as sp
+def logdir(name):
+    path = "./{}/".format(name)
+    if not os.path.exists(path):
+        os.makedirs(path)
 
+    return path
 
 def set_seed(seed):
     """
@@ -13,20 +18,18 @@ def set_seed(seed):
     """
     random.seed(seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
+    tf.random.set_seed(seed)
+    # torch.cuda.manual_seed(seed)
 
-
-
-def get_config(config):
-    """
-    get configuration from config.yaml
-    :param config: config.yaml
-    :return: Dict(Key, Value(list))
-    """
-    with open(config, 'r') as stream:
-        return yaml.load(stream, Loader=yaml.FullLoader)
-
+def to_numpy(x):
+    if sp.issparse(x):
+        return x.A
+    elif hasattr(x, "numpy"):
+        return x.numpy()
+    elif tf.keras.backend.is_sparse(x):
+        return tf.sparse.to_dense(x).numpy()
+    else:
+        return np.array(x)
 
 
 def ensure_dir(path):
@@ -56,29 +59,6 @@ def ensure_dirs(paths):
         ensure_dir(paths)
 
 
-
-def print_composite(data, beg=""):
-    """
-    print the elements of composite
-    for dict, list, np.ndarray, torch.Tensor
-    :param data: composite
-    :param beg: name of composite
-    :return:
-    """
-    if isinstance(data, dict):
-        print(f'{beg} dict, size={len(data)}')
-        for key, value in data.items():
-            print(f'    {beg}{key}:')
-            print_composite(value, beg + "    ")
-    elif isinstance(data, list):
-        print(f'{beg} list, len={len(data)}')
-        for i, item in enumerate(data):
-            print(f'    {beg}item {i}')
-            print_composite(item, beg+ "    ")
-    elif isinstance(data, np.ndarray) or isinstance(data, torch.Tensor):
-        print(f'{beg} array of size {data.shape}')
-    else:
-        print(f'{beg} {data}')
 
 def gen_model_list(dirname, key):
     """

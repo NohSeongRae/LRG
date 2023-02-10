@@ -1,169 +1,194 @@
+import time
 import os
 import sys
-import copy
-import logging
 
-from tqdm import tqdm
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import numpy as np
+import tensorflow as tf
+from spektral.layers import ops
+from spektral.utils import sparse
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Lambda
 
-sys.path.append('./etc')
-from utils import get_model_list
+from model import Autoencoder
+from simple_data import make_simple_dataset
+from etc.utils import logdir, to_numpy
+from upsampling import upsampling_with_pinv
 
-logger = logging.getLogger(__name__)
-
-from model import (Generator)
-
-
-class Trainer(nn.Module):
-    def __init__(self, config):
-        super(Trainer, self).__init__()
-        self.gen = Generator(config['model']['gen'])
-        self.gen_ema = copy.deepcopy(self.gen)
-
-        self.model_dir = config['model_dir']
-        self.config = config
-
-        lr_gen = config['lr_gen']
-        gen_params = list(self.gen.parameters())
-        self.gen_opt = torch.optim.Adam([p for p in gen_params if p.requires_grad], lr=lr_gen,
-                                        weight_decay=config['weight_decay'])
-
-        self.device = 'cpu'
-        if torch.cuda.is_available():
-            self.device = torch.cuda.current_device()
-            self.gen = nn.DataParallel(self.gen).to(self.device)
-            self.gen_ema = nn.DataParallel(self.gen_ema).to(self.device)
-
-    def train(self, loader, writer):
-        config = self.config
-
-        def run_epoch(epoch):
-            self.gen.train()
-
-            pbar = tqdm(enumerate(zip(loader['train_road'])), total=len(loader['train_road']))
-
-            for it, road in pbar:
-                gen_loss_total, gen_loss_dict = self.compute_gen_loss(road)
-                self.gen_opt.zero_grad()
-                gen_loss_total.backward()
-                nn.utils.clip_grad_norm(self.gen.parameters(), 1.0) #뭘까요?
-                self.gen_opt.step()
-                update_average(self.gen_ema, self.gen)
-
-                log = "Epoch[%i/%i],  " % (epoch + 1, config['max_epochs'])
-                all_losses = dict()
-                for loss in [gen_loss_dict]:
-                    for key, value in loss.items():
-                        if key.find('total') > -1:
-                            all_losses[key] = value
-                log += ' '.join(['%s: [%.2f]' % (key, value) for key, value in all_losses.items()])
-                pbar.set_description(log)
-
-                if (it + 1) % config['log_every'] == 0:
-                    for k, v in gen_loss_dict.items():
-                        writer.add_scalar(k, v, epoch * len(loader['train_road']) + it)
-
-        for epoch in range(config['max_epoch']):
-            run_epoch(epoch)
-
-            if (epoch + 1) % config['save_every'] == 0:
-                self.save_checkpoint(epoch + 1)
-
-    def compute_gen_loss(self, road):
-        config = self.config
-
-        road_in = road['train'].to(self.device)
-
-        f1, f2, f3, f4, f5 = self.gen(road_in)
-
-        loss_recon = nn.BCELoss(f1, road)
-        loss_regularization = -0.5 * torch.sum(1 + 2 * f2 - f3 ** 2 - torch.exp(f2) ** 2).sum(1).mean()
-
-        l_total = (config['rec_w'] * loss_recon
-                   + config['reg_w'] * loss_regularization)
-
-        l_dict = {'loss_total': l_total,
-                  'loss_recon': loss_recon,
-                  'loss_regul': loss_regularization}
-
-        return l_total, l_dict
-
-    @torch.no_grad()
-    def test(self, road):
-        config = self.config
-        self.gen_ema.eval()
-
-        f1, f2, f3, f4, f5 = self.gen_ema(road, phase='test')
-        loss_recon = nn.BCELoss(f1, road)
-        loss_regularization = -0.5 * torch.sum(1 + 2 * f2 - f3 ** 2 - torch.exp(f2) ** 2).sum(1).mean()
-
-        l_total = (config['rec_w'] * loss_recon
-                   + config['reg_w'] * loss_regularization)
-
-        l_dict = {'loss_total': l_total,
-                  'loss_recon': loss_recon,
-                  'loss_regul': loss_regularization}
-
-        out_dict = {
-            "recon_road": f4,
-            "road_gt": road
-        }
-
-        return out_dict, l_dict
-
-    def save_checkpoint(self, epoch):
-        gen_path = os.path.join(self.model_dir, 'gen_%03d.pt' % epoch)
-
-        raw_gen = self.gen.module if hasattr(self.gen, "module") else self.gen
-        raw_gen_ema = self.gen_ema.module if hasattr(self.gen_ema, "module") else self.gen_ema #확인해봐야함
-
-        logger.info("saving %s", gen_path)
-        torch.save({'gen': raw_gen.state_dict(), 'gen_ema': raw_gen_ema.state_dict()}, gen_path)
-
-        print('Saved model at epoch %d' % epoch)
-
-    def load_checkpoint(self, model_path=None):
-        if not model_path:
-            model_dir = self.model_dir
-            model_path = get_model_list(model_dir, "gen")
-
-        state_dict = torch.load(model_path, map_location=self.device)
-        self.gen.load_state_dict(state_dict['gen'])
-        self.gen_ema.load_state_dict(state_dict['gen_ema'])
-
-        epochs = int(model_path[-6:-3])
-        print('Load from epoch %d' % epochs)
-
-        return epochs
+physical_devices = tf.config.list_physical_devices("GPU")
+for i in range(len(physical_devices)):
+    tf.config.experimental.set_memory_growth(physical_devices[i], True)
 
 
-def update_average(model_tgt, model_src, beta=0.999):
-    with torch.no_grad():
-        param_dict_src = dict(model_src.named_parameters())
-        for p_name, p_tgt in model_tgt.named_parameters():
-            p_src = param_dict_src[p_name]
-            assert (p_src is not p_tgt)
-            p_tgt.copy_(beta * p_tgt + (1. - beta) * p_src)
+def loss_fn(X, X_pred):  # please modify this later: custom loss
+    """
+    compute loss
+    :param X: ground truth
+    :param X_pred: model output
+    :return: loss
+    """
+    loss = tf.keras.losses.mean_squared_error(X, X_pred)
+    loss = tf.reduce_mean(loss)
 
 
-if __name__ == '__main__':
-    import argparse
-    from etc.utils import get_config
+def downsampling(inputs):
+    """
+    downsampling method that perfroms in learning-time
+    :param inputs: (X: node feature matrix), (A: adjacency matrix), (S: selection matrix obtained by NDP)
+    :return: (X_pool: pooled node feature matrix), (A_pool: pooled adj matrix)
+    """
+    X, A, S = inputs
+    return ops.modal_dot(S, X, transpose_a=True), ops.matmul_at_b_a(S, A)
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='config/config.yaml', help='Path to the config file.')
-    args = parser.parse_args()
-    config = get_config(args.config)
-    config['main_dir'] = os.path.join('.', config['name'])
-    config['model_dir'] = os.path.join(config['main_dir'], "pth")
 
-    trainer = Trainer(config)
+def create_model(F):
+    """
+    initialize model
+    :param F: input feature dimension (F = X.shape[-1])
+    :return: initialized model (LRG)
+    """
+    pool = Lambda(downsampling)
+    lift = Lambda(upsampling_with_pinv)
+    model = Autoencoder(F, pool, lift)
+    return model
 
-    xa = torch.randn(1, 2, 3, 4)  # re implement this
-    xa_foot = torch.zeros(1, 4, 20)
 
-    xa_in = {'road': xa}
+def main(X, A, S, learning_rate, es_patience, es_tol):  # please modify this later: multiple S for hierarchical pooling
+    """
+    buildi model and set up training
+    :param X: node feature matrix
+    :param A: adj matrix
+    :param S: selection matrix obtained by NDP
+    :param learning_rate: learning rate
+    :param es_patience: patience parameter for early stopping
+    :param es_tol: tolerance parameter for early stopping
+    :return: model, training times
+    """
+    K.clear_session()
+    F = X.shape[-1]
+    model = create_model(F)
+    optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
-    trainer.compute_gen_loss(xa_in)
+    @tf.function
+    def train_step(model, optimizer, X, A, S):
+        with tf.GradientTape() as tape:
+            X_pred, _, _, _, _ = model([X, A, S], training=True)
+            main_loss = loss_fn(X, X_pred)  # please modify this later: custom loss function
+            loss_value = main_loss + sum(model.losses)
+
+        grads = tape.gradient(loss_value, model.trainable_weights)
+        optimizer.apply_gradients(zip(grads, model.trainable_weights))
+
+        return main_loss
+
+    # fit model, early stopping
+    patience = es_patience
+    best_loss = np.inf
+    best_weights = None
+    training_times = []
+    ep = 0
+
+    while True:
+        ep += 1
+        timer = time.time()
+        loss_out = train_step(model, optimizer, X, A, S)
+        training_times.append(time.time() - timer)
+        if loss_out + es_tol < best_loss:
+            best_loss = loss_out
+            patience = es_patience
+            best_weights = model.get_weights()
+            print("Epoch {} - New best loss: {:.4e}".format(ep, best_loss))
+        else:
+            patience -= 1
+            if patience == 0:
+                break
+
+    model.set_weights(best_weights)
+    return model, training_times
+
+
+def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, runs):
+    """
+    initialize the total experiment
+    :param name: dataset name
+    :param method: (pooling method name) * please modify here later
+    :param pooling: wrapper function
+    :param learning_rate: lr_rate
+    :param es_patience: patience parameter for early stopping
+    :param es_tol:tolerance parameter for early stopping
+    :param runs: experiment repeat time
+    :return: avg_results, std_results
+    """
+
+    # save dir
+    log_dir = logdir(name)
+
+    # data load
+    A, X, _ = make_simple_dataset(name)
+
+    # pooling
+    A, X, A_pool, S = pooling(X, A)
+
+    X = np.array(X)
+    S = to_numpy(S)
+    A = sparse.sp_matrix_to_sp_tensor(A.astype("f4"))
+
+    # summary writer
+    writer = tf.summary.create_file_writer("summaries")
+
+    # #checkpoint setting
+    # checkpoint_path="saved_checkpoints/{}_{}_matrices.ckpt".format(method, name)
+    # checkpoint_dir=os.path.dirname(checkpoint_path)
+    # Run main
+    results = []
+    for r in range(runs):
+        print(f"{r + 1} of {runs}")
+        model, training_times = main(
+            X=X,
+            A=A,
+            S=S,
+            learning_rate=learning_rate,
+            es_patience=es_patience,
+            es_tol=es_tol,
+        )
+        # evaluation
+        X_pred, _, _, _, _ = model([X, A < S], training=False)
+        loss_out = loss_fn(X, X_pred).numpy()  # please modify this later: custom loss function
+        with writer.as_default():
+            tf.summary.scalar('loss', loss_out, step=r)
+        results.append(loss_out)
+        model.save_weights('./saved_checkpoints')
+        print("Final MSE: {:.4e}".format(loss_out))  # please modify this later: custom loss function
+
+    avg_results = np.mean(results, axis=0)
+    std_results = np.std(results, axis=0)
+
+    # run trained model to get pooled graph
+    X_pred, A_pred, _, X_pool, _ = model([X, A, S], training=False)
+
+    # if there is selection mask, convert selection mask to selection matrix
+    S = to_numpy(S)
+    if S.dim == 1:
+        S = np.eye(S.shape[0])[:, S.astype(bool)]
+
+    # save data for plotting
+    np.savez(
+        log_dir + "{}_{}_matrices.npz".format(method, name),
+        X=to_numpy(X),
+        A=to_numpy(A),
+        X_pool=to_numpy(X_pool),
+        A_pool=to_numpy(A_pool),
+        X_pred=to_numpy(X_pred),
+        A_pred=to_numpy(A_pred),
+        S=to_numpy(S),
+        loss=loss_out,
+        training_times=training_times,
+    )
+
+    return avg_results, std_results
+
+
+def results_to_file(dataset, method, avg_results, std_results):
+    filename = "{}_result.csv".format(dataset)
+    with open(filename, "a") as f:
+        line = "{}, {} +- {}\n".format(method, avg_results, std_results)
+        f.write(line)
