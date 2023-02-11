@@ -28,7 +28,7 @@ def loss_fn(X, X_pred):  # please modify this later: custom loss
     """
     loss = tf.keras.losses.mean_squared_error(X, X_pred)
     loss = tf.reduce_mean(loss)
-
+    return loss
 
 def downsampling(inputs):
     """
@@ -52,7 +52,7 @@ def create_model(F):
     return model
 
 
-def main(X, A, S, learning_rate, es_patience, es_tol):  # please modify this later: multiple S for hierarchical pooling
+def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm):  # please modify this later: multiple S for hierarchical pooling
     """
     buildi model and set up training
     :param X: node feature matrix
@@ -67,18 +67,22 @@ def main(X, A, S, learning_rate, es_patience, es_tol):  # please modify this lat
     F = X.shape[-1]
     model = create_model(F)
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+    A_label=A.toarray().reshape([-1])
 
     @tf.function
     def train_step(model, optimizer, X, A, S):
         with tf.GradientTape() as tape:
-            X_pred, _, _, _, _ = model([X, A, S], training=True)
-            main_loss = loss_fn(X, X_pred)  # please modify this later: custom loss function
-            loss_value = main_loss + sum(model.losses)
-
-        grads = tape.gradient(loss_value, model.trainable_weights)
+            X_pred, A_pred, _, _, _ ,model_z_mean, model_z_log_std= model([X, A, S], training=True)
+            X_loss = loss_fn(X, X_pred)
+            rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=X_pred, labels=A_label, pos_weight=pos_weight))
+            kl_loss=(0.5)*tf.reduce_mean(tf.reduce_sum(1+2*model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)),1))
+            # please modify this later: custom loss function
+            total_loss = X_loss +rec_loss+kl_loss+ sum(model.losses)
+            loss_dic={"X_loss":X_loss, "rec_loss":rec_loss, "kl_loss":kl_loss, "total_loss":total_loss}
+        grads = tape.gradient(total_loss, model.trainable_weights)
         optimizer.apply_gradients(zip(grads, model.trainable_weights))
 
-        return main_loss
+        return total_loss, loss_dic
 
     # fit model, early stopping
     patience = es_patience
@@ -90,13 +94,13 @@ def main(X, A, S, learning_rate, es_patience, es_tol):  # please modify this lat
     while True:
         ep += 1
         timer = time.time()
-        loss_out = train_step(model, optimizer, X, A, S)
+        loss_out, loss_dic = train_step(model, optimizer, X, A, S)
         training_times.append(time.time() - timer)
         if loss_out + es_tol < best_loss:
             best_loss = loss_out
             patience = es_patience
             best_weights = model.get_weights()
-            print("Epoch {} - New best loss: {:.4e}".format(ep, best_loss))
+            print("Epoch {} - New best loss: {:.4e}, X_loss : {:.4e}, rec_loss:{:.4e}, kl_loss:{:.4e}".format(ep, best_loss, loss_dic["X_loss"],loss_dic["rec_loss"], loss_dic["kl_loss"] ))
         else:
             patience -= 1
             if patience == 0:
@@ -131,6 +135,10 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
     X = np.array(X)
     S = to_numpy(S)
     A = sparse.sp_matrix_to_sp_tensor(A.astype("f4"))
+    A_label = A.toarray().reshape([-1])
+
+    pos_weight=float(A.shape[0] * A.shape[0] - A.sum())/A.sum()
+    norm = A.shape[0]*A.shape[0]/float((A.shape[0]* A.shape[0] - A.sum())*2)
 
     # summary writer
     writer = tf.summary.create_file_writer("summaries")
@@ -149,21 +157,29 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
             learning_rate=learning_rate,
             es_patience=es_patience,
             es_tol=es_tol,
+            pos_weight=pos_weight,
+            norm=norm,
         )
         # evaluation
-        X_pred, _, _, _, _ = model([X, A < S], training=False)
-        loss_out = loss_fn(X, X_pred).numpy()  # please modify this later: custom loss function
+        X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std = model([X, A, S], training=True)
+        X_loss = loss_fn(X, X_pred)
+        rec_loss = norm * tf.reduce_mean(
+            tf.nn.weighted_cross_entropy_with_logits(logits=X_pred, labels=A_label, pos_weight=pos_weight))
+        kl_loss = (0.5) * tf.reduce_mean(
+            tf.reduce_sum(1 + 2 * model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)), 1))
+        # please modify this later: custom loss function
+        total_loss = X_loss + rec_loss + kl_loss + sum(model.losses)  # please modify this later: custom loss function
         with writer.as_default():
-            tf.summary.scalar('loss', loss_out, step=r)
-        results.append(loss_out)
+            tf.summary.scalar('loss', total_loss, step=r)
+        results.append(total_loss)
         model.save_weights('./saved_checkpoints')
-        print("Final MSE: {:.4e}".format(loss_out))  # please modify this later: custom loss function
+        print("Final MSE: {:.4e}".format(total_loss))  # please modify this later: custom loss function
 
     avg_results = np.mean(results, axis=0)
     std_results = np.std(results, axis=0)
 
     # run trained model to get pooled graph
-    X_pred, A_pred, _, X_pool, _ = model([X, A, S], training=False)
+    X_pred, A_pred, _, _, _, _, _ = model([X, A, S], training=False)
 
     # if there is selection mask, convert selection mask to selection matrix
     S = to_numpy(S)
@@ -175,12 +191,10 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
         log_dir + "{}_{}_matrices.npz".format(method, name),
         X=to_numpy(X),
         A=to_numpy(A),
-        X_pool=to_numpy(X_pool),
-        A_pool=to_numpy(A_pool),
         X_pred=to_numpy(X_pred),
         A_pred=to_numpy(A_pred),
         S=to_numpy(S),
-        loss=loss_out,
+        loss=total_loss,
         training_times=training_times,
     )
 

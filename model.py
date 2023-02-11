@@ -57,11 +57,11 @@ class Autoencoder(Model):
         #decoder
 
         a_pool=tf.matmul(z, tf.transpose(z))
-
+        pool_outputs[1]=a_pool
         x_lift, a_lift = self.lift(pool_outputs)
 
         if self.post_processing:
             x_lift = self.skip([self.gnn2([x_lift, a]), x_lift])
             x_lift = self.post(x_lift)
 
-        return x_lift, a_lift, s, x_pool, a_pool
+        return x_lift, a_lift, s, x_pool, a_pool, z_mean, z_log_std
