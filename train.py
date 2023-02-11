@@ -2,6 +2,7 @@ import argparse
 import tensorflow as tf
 from trainer import results_to_file, run_experiment
 from blocks import NDP
+from plot import plot_result
 
 # initialize args
 parser = argparse.ArgumentParser()
@@ -42,3 +43,5 @@ results = run_experiment(
 )
 
 results_to_file(args.name, "NDP", *results)
+
+plot_result()

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import scipy.sparse as sp
-def plot_result(name):
+def plot_result():
     minnesota = np.load('result/NDP_Grid2d_matrices.npz')
 
     # 1 Original

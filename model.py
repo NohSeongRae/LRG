@@ -1,4 +1,5 @@
 from spektral.layers import GeneralConv
+from spektral.utils import sp_matrix_to_sp_tensor
 from spektral.layers import GCNConv
 from spektral.models.general_gnn import MLP
 import tensorflow as tf
@@ -51,9 +52,16 @@ class Autoencoder(Model):
         else:
             s = pool_outputs[2]
         x_pool, a_pool = pool_outputs[:2]
+        a_pool=tf.sparse.from_dense(a_pool)
+        #################################### debuging
+        # sp_matrix_to_sp_tensor(a_pool)
+        # print(a_pool) #debug code
+        #####################################
+
+
         z_mean=self.skip([self.gnn_shared([x_pool, a_pool]), x_pool])
         z_log_std = self.skip([self.gnn_shared([x_pool, a_pool]), x_pool])
-        z=z_mean+tf.random.normal([len(x_pool), 256])*tf.exp(z_log_std)
+        z=z_mean+tf.random.normal([len(x_pool), 768])*tf.exp(z_log_std)
         #decoder
 
         a_pool=tf.matmul(z, tf.transpose(z))
@@ -61,7 +69,10 @@ class Autoencoder(Model):
         x_lift, a_lift = self.lift(pool_outputs)
 
         if self.post_processing:
-            x_lift = self.skip([self.gnn2([x_lift, a]), x_lift])
+            a_lift = tf.sparse.from_dense(a_lift)
+            x_lift = self.skip([self.gnn2([x_lift, a_lift]), x_lift])
             x_lift = self.post(x_lift)
+        a_logit=tf.sparse.to_dense(a_lift)
+        a_logit=tf.reshape(a_logit, [-1])
 
-        return x_lift, a_lift, s, x_pool, a_pool, z_mean, z_log_std
+        return x_lift, a_lift, s, x_pool, a_pool, z_mean, z_log_std, a_logit

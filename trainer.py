@@ -52,7 +52,7 @@ def create_model(F):
     return model
 
 
-def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm):  # please modify this later: multiple S for hierarchical pooling
+def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm, A_label):  # please modify this later: multiple S for hierarchical pooling
     """
     buildi model and set up training
     :param X: node feature matrix
@@ -67,14 +67,16 @@ def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm):  # plea
     F = X.shape[-1]
     model = create_model(F)
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    A_label=A.toarray().reshape([-1])
+
 
     @tf.function
     def train_step(model, optimizer, X, A, S):
         with tf.GradientTape() as tape:
-            X_pred, A_pred, _, _, _ ,model_z_mean, model_z_log_std= model([X, A, S], training=True)
+            X_pred, A_pred, _, _, _ ,model_z_mean, model_z_log_std, L_A_pred= model([X, A, S], training=True)
             X_loss = loss_fn(X, X_pred)
-            rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=X_pred, labels=A_label, pos_weight=pos_weight))
+            # L_A_pred=tf.reshape(A_pred, [-1])
+            # L_A_label=tf.reshape(A_label, [-1])
+            rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight))
             kl_loss=(0.5)*tf.reduce_mean(tf.reduce_sum(1+2*model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)),1))
             # please modify this later: custom loss function
             total_loss = X_loss +rec_loss+kl_loss+ sum(model.losses)
@@ -128,17 +130,23 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
 
     # data load
     A, X, _ = make_simple_dataset(name)
+    A_label = A.toarray().reshape([-1])
+    A_label.astype("f4")
 
     # pooling
     A, X, A_pool, S = pooling(X, A)
-
+    # A_label = A.toarray().reshape([-1])
     X = np.array(X)
     S = to_numpy(S)
-    A = sparse.sp_matrix_to_sp_tensor(A.astype("f4"))
-    A_label = A.toarray().reshape([-1])
 
-    pos_weight=float(A.shape[0] * A.shape[0] - A.sum())/A.sum()
-    norm = A.shape[0]*A.shape[0]/float((A.shape[0]* A.shape[0] - A.sum())*2)
+    pos_weight = float(A.shape[0] * A.shape[0] - A.sum()) / A.sum()
+    pos_weight.astype("f4")
+    norm = A.shape[0] * A.shape[0] / float((A.shape[0] * A.shape[0] - A.sum()) * 2)
+    # A_label = sparse.sp_matrix_to_sp_tensor(A)
+    A = sparse.sp_matrix_to_sp_tensor(A.astype("f4"))
+
+
+
 
     # summary writer
     writer = tf.summary.create_file_writer("summaries")
@@ -159,12 +167,14 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
             es_tol=es_tol,
             pos_weight=pos_weight,
             norm=norm,
+            A_label=A_label,
         )
         # evaluation
-        X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std = model([X, A, S], training=True)
+        X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std,L_A_pred = model([X, A, S], training=True)
         X_loss = loss_fn(X, X_pred)
-        rec_loss = norm * tf.reduce_mean(
-            tf.nn.weighted_cross_entropy_with_logits(logits=X_pred, labels=A_label, pos_weight=pos_weight))
+        # L_A_pred = tf.reshape(A_pred, [-1])
+        # L_A_label = tf.reshape(A_label, [-1])
+        rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight))
         kl_loss = (0.5) * tf.reduce_mean(
             tf.reduce_sum(1 + 2 * model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)), 1))
         # please modify this later: custom loss function
@@ -179,12 +189,12 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
     std_results = np.std(results, axis=0)
 
     # run trained model to get pooled graph
-    X_pred, A_pred, _, _, _, _, _ = model([X, A, S], training=False)
+    X_pred, A_pred, _, _, _, _, _, _ = model([X, A, S], training=False)
 
     # if there is selection mask, convert selection mask to selection matrix
-    S = to_numpy(S)
-    if S.dim == 1:
-        S = np.eye(S.shape[0])[:, S.astype(bool)]
+    # S = to_numpy(S)
+    # if S.dim == 1:
+    #     S = np.eye(S.shape[0])[:, S.astype(bool)]
 
     # save data for plotting
     np.savez(
