@@ -1,5 +1,7 @@
 from spektral.layers import GeneralConv
+from spektral.layers import GCNConv
 from spektral.models.general_gnn import MLP
+import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.python.keras.layers import Concatenate
 
@@ -10,6 +12,7 @@ class Autoencoder(Model):
         #encoder
         self.pre = MLP(256, activation="relu", batch_norm=batch_norm)
         self.gnn1 = GeneralConv(activation="relu", batch_norm=batch_norm)
+        self.gnn_shared=GeneralConv(activation="relu", batch_norm=batch_norm)
         self.skip = Concatenate()
         self.pool = pool
 
@@ -27,6 +30,7 @@ class Autoencoder(Model):
             )
 
     def call(self, inputs):
+        #encoder
         if len(inputs) == 2:
             x, a = inputs
             s = None
@@ -47,6 +51,13 @@ class Autoencoder(Model):
         else:
             s = pool_outputs[2]
         x_pool, a_pool = pool_outputs[:2]
+        z_mean=self.skip([self.gnn_shared([x_pool, a_pool]), x_pool])
+        z_log_std = self.skip([self.gnn_shared([x_pool, a_pool]), x_pool])
+        z=z_mean+tf.random.normal([len(x_pool), 256])*tf.exp(z_log_std)
+        #decoder
+
+        a_pool=tf.matmul(z, tf.transpose(z))
+
         x_lift, a_lift = self.lift(pool_outputs)
 
         if self.post_processing:
