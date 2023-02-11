@@ -10,14 +10,14 @@ from tensorflow.python.keras.layers import Concatenate
 class Autoencoder(Model):
     def __init__(self, n_features, pool, lift, batch_norm=False, post_procesing=True):
         super().__init__()
-        #encoder
+        # encoder
         self.pre = MLP(256, activation="relu", batch_norm=batch_norm)
         self.gnn1 = GeneralConv(activation="relu", batch_norm=batch_norm)
-        self.gnn_shared=GeneralConv(activation="relu", batch_norm=batch_norm)
+        self.gnn_shared = GeneralConv(activation="relu", batch_norm=batch_norm)
         self.skip = Concatenate()
         self.pool = pool
 
-        #decoder
+        # decoder
         self.lift = lift
 
         self.post_processing = post_procesing
@@ -31,7 +31,7 @@ class Autoencoder(Model):
             )
 
     def call(self, inputs):
-        #encoder
+        # encoder
         if len(inputs) == 2:
             x, a = inputs
             s = None
@@ -52,27 +52,26 @@ class Autoencoder(Model):
         else:
             s = pool_outputs[2]
         x_pool, a_pool = pool_outputs[:2]
-        a_pool=tf.sparse.from_dense(a_pool)
+        a_pool = tf.sparse.from_dense(a_pool)
         #################################### debuging
         # sp_matrix_to_sp_tensor(a_pool)
         # print(a_pool) #debug code
         #####################################
 
-
-        z_mean=self.skip([self.gnn_shared([x_pool, a_pool]), x_pool])
+        z_mean = self.skip([self.gnn_shared([x_pool, a_pool]), x_pool])
         z_log_std = self.skip([self.gnn_shared([x_pool, a_pool]), x_pool])
-        z=z_mean+tf.random.normal([len(x_pool), 768])*tf.exp(z_log_std)
-        #decoder
+        z = z_mean + tf.random.normal([len(x_pool), 768]) * tf.exp(z_log_std)
+        # decoder
 
-        a_pool=tf.matmul(z, tf.transpose(z))
-        pool_outputs[1]=a_pool
+        a_pool = tf.matmul(z, tf.transpose(z))
+        pool_outputs[1] = a_pool
         x_lift, a_lift = self.lift(pool_outputs)
 
         if self.post_processing:
             a_lift = tf.sparse.from_dense(a_lift)
             x_lift = self.skip([self.gnn2([x_lift, a_lift]), x_lift])
             x_lift = self.post(x_lift)
-        a_logit=tf.sparse.to_dense(a_lift)
-        a_logit=tf.reshape(a_logit, [-1])
+        a_logit = tf.sparse.to_dense(a_lift)
+        a_logit = tf.reshape(a_logit, [-1])
 
         return x_lift, a_lift, s, x_pool, a_pool, z_mean, z_log_std, a_logit

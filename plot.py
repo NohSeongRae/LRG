@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 import scipy.sparse as sp
 def plot_result():
-    minnesota = np.load('result/NDP_Grid2d_matrices.npz')
+    minnesota = np.load('Grid2d/NDP_Grid2d_matrices.npz')
 
     # 1 Original
 
@@ -28,6 +28,8 @@ def plot_result():
     for i in range(len(minnesota["X_pred"])):
         pred_pos_dict[i] = tuple(minnesota["X_pred"][i])
 
+    # print(len(minnesota["X_pred"]))
+    # print(minnesota["X_pred"])
     pred_A = minnesota["A_pred"]
     pred_G = nx.from_numpy_array(pred_A)
     pred_pos = pred_pos_dict
@@ -35,3 +37,4 @@ def plot_result():
     nx.draw_networkx_edges(pred_G, pred_pos, alpha=0.5, width=1)
     plt.axis('off')
     plt.show()
+

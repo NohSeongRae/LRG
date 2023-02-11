@@ -30,6 +30,7 @@ def loss_fn(X, X_pred):  # please modify this later: custom loss
     loss = tf.reduce_mean(loss)
     return loss
 
+
 def downsampling(inputs):
     """
     downsampling method that perfroms in learning-time
@@ -52,7 +53,8 @@ def create_model(F):
     return model
 
 
-def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm, A_label):  # please modify this later: multiple S for hierarchical pooling
+def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm,
+         A_label):  # please modify this later: multiple S for hierarchical pooling
     """
     buildi model and set up training
     :param X: node feature matrix
@@ -68,19 +70,24 @@ def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm, A_label)
     model = create_model(F)
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
-
     @tf.function
     def train_step(model, optimizer, X, A, S):
         with tf.GradientTape() as tape:
-            X_pred, A_pred, _, _, _ ,model_z_mean, model_z_log_std, L_A_pred= model([X, A, S], training=True)
+            X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std, L_A_pred = model([X, A, S], training=True)
             X_loss = loss_fn(X, X_pred)
             # L_A_pred=tf.reshape(A_pred, [-1])
             # L_A_label=tf.reshape(A_label, [-1])
-            rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight))
-            kl_loss=(0.5)*tf.reduce_mean(tf.reduce_sum(1+2*model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)),1))
+            # rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight))
+            # rec_loss = norm * tf.reduce_mean(
+            #     tf.nn.sigmoid_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4")))
+            bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
+            rec_loss = norm * bce(A_label.astype("f4"), L_A_pred)
+            kl_loss = (0.5 / len(X)) * tf.reduce_mean(
+                tf.reduce_sum(1 + 2 * model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)),
+                              1))
             # please modify this later: custom loss function
-            total_loss = X_loss +rec_loss+kl_loss+ sum(model.losses)
-            loss_dic={"X_loss":X_loss, "rec_loss":rec_loss, "kl_loss":kl_loss, "total_loss":total_loss}
+            total_loss = 10 * X_loss + 2 * rec_loss + kl_loss + sum(model.losses)
+            loss_dic = {"X_loss": X_loss, "rec_loss": rec_loss, "kl_loss": kl_loss, "total_loss": total_loss}
         grads = tape.gradient(total_loss, model.trainable_weights)
         optimizer.apply_gradients(zip(grads, model.trainable_weights))
 
@@ -102,7 +109,14 @@ def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm, A_label)
             best_loss = loss_out
             patience = es_patience
             best_weights = model.get_weights()
-            print("Epoch {} - New best loss: {:.4e}, X_loss : {:.4e}, rec_loss:{:.4e}, kl_loss:{:.4e}".format(ep, best_loss, loss_dic["X_loss"],loss_dic["rec_loss"], loss_dic["kl_loss"] ))
+            print("Epoch {} - New best loss: {:.4e}, X_loss : {:.4e}, rec_loss:{:.4e}, kl_loss:{:.4e}".format(ep,
+                                                                                                              best_loss,
+                                                                                                              loss_dic[
+                                                                                                                  "X_loss"],
+                                                                                                              loss_dic[
+                                                                                                                  "rec_loss"],
+                                                                                                              loss_dic[
+                                                                                                                  "kl_loss"]))
         else:
             patience -= 1
             if patience == 0:
@@ -145,11 +159,8 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
     # A_label = sparse.sp_matrix_to_sp_tensor(A)
     A = sparse.sp_matrix_to_sp_tensor(A.astype("f4"))
 
-
-
-
     # summary writer
-    writer = tf.summary.create_file_writer("summaries")
+    # writer = tf.summary.create_file_writer("summaries")
 
     # #checkpoint setting
     # checkpoint_path="saved_checkpoints/{}_{}_matrices.ckpt".format(method, name)
@@ -170,20 +181,26 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
             A_label=A_label,
         )
         # evaluation
-        X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std,L_A_pred = model([X, A, S], training=True)
+        X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std, L_A_pred = model([X, A, S], training=True)
         X_loss = loss_fn(X, X_pred)
         # L_A_pred = tf.reshape(A_pred, [-1])
         # L_A_label = tf.reshape(A_label, [-1])
-        rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight))
-        kl_loss = (0.5) * tf.reduce_mean(
+        # rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight))
+        # rec_loss = norm * tf.reduce_mean(
+        #     tf.nn.sigmoid_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4")))
+        bce=tf.keras.losses.BinaryCrossentropy(from_logits=True)
+        rec_loss=norm*bce(A_label.astype("f4"),L_A_pred)
+        kl_loss = (0.5 / len(X)) * tf.reduce_mean(
             tf.reduce_sum(1 + 2 * model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)), 1))
         # please modify this later: custom loss function
-        total_loss = X_loss + rec_loss + kl_loss + sum(model.losses)  # please modify this later: custom loss function
-        with writer.as_default():
-            tf.summary.scalar('loss', total_loss, step=r)
+        total_loss = 10 * X_loss + 2 * rec_loss + kl_loss + sum(
+            model.losses)  # please modify this later: custom loss function
+        loss_dic = {"X_loss": X_loss, "rec_loss": rec_loss, "kl_loss": kl_loss, "total_loss": total_loss}
+        # with writer.as_default():
+        #     tf.summary.scalar('loss', total_loss, step=r)
         results.append(total_loss)
-        model.save_weights('./saved_checkpoints')
-        print("Final MSE: {:.4e}".format(total_loss))  # please modify this later: custom loss function
+        # model.save_weights('./saved_checkpoints')
+        print("Final Loss: {:.4e}".format(total_loss))  # please modify this later: custom loss function
 
     avg_results = np.mean(results, axis=0)
     std_results = np.std(results, axis=0)
@@ -208,11 +225,16 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
         training_times=training_times,
     )
 
-    return avg_results, std_results
+    return avg_results, std_results, loss_dic
 
 
-def results_to_file(dataset, method, avg_results, std_results):
+def results_to_file(dataset, method, avg_results, std_results, loss_dic):
     filename = "{}_result.csv".format(dataset)
     with open(filename, "a") as f:
-        line = "{}, {} +- {}\n".format(method, avg_results, std_results)
+        line = "{}, {} +- {},X_loss, {}, rec_loss, {}, kl_loss, {}, total_loss, {} \n".format(method, avg_results,
+                                                                                              std_results,
+                                                                                              loss_dic["X_loss"],
+                                                                                              loss_dic["rec_loss"],
+                                                                                              loss_dic["kl_loss"],
+                                                                                              loss_dic["total_loss"])
         f.write(line)

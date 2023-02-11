@@ -45,15 +45,22 @@ from simple_data import make_simple_dataset
 # print(f"toarray().reshape([-1]): {A}")
 # print(f"len(A): {len(A)}")
 
-# A, X, _=make_simple_dataset("Grid2d")
+A, X, _=make_simple_dataset("Grid2d")
 # #
 # # print(type(A))
 # # print(A)
 # A=sp_matrix_to_sp_tensor(A)
+A_label=A.toarray().reshape([-1])
+print(len(A_label))
+print(len(X))
 # print(type(A))
 # print(A)
 
-sp=tf.sparse.from_dense([[0,1,0,0,0],[1,0,1,1,0],[0,1,0,1,1],[0,1,1,0,1],[0,0,1,1,0]])
-print(sp)
-print(type(sp))
-print(sp.dense_shape)
+# sp=tf.sparse.from_dense([[0,1,0,0,0],[1,0,1,1,0],[0,1,0,1,1],[0,1,1,0,1],[0,0,1,1,0]])
+# print(sp)
+# print(type(sp))
+# print(sp.dense_shape)
+
+
+
+# plot_result()
