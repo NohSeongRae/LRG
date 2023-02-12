@@ -24,6 +24,11 @@ def loss_fn(X, X_pred):
     loss = tf.reduce_mean(loss)
     return loss
 
+def loss_deg(A_pred, deg_A_pool):
+    A_pred=np.array([A_pred])
+    diag_deg_pred, _ = np.histogram(A_pred.nonzero()[0], np.arange(A_pred.shape[0] + 1))
+    deg_loss = tf.nn.sigmoid_cross_entropy_with_logits(logits=diag_deg_pred, labels=deg_A_pool)
+    return deg_loss
 
 def loss_rec_bce(A_pred, A_label):
     a_logit = tf.sparse.to_dense(A_pred)
@@ -42,9 +47,9 @@ def loss_rec_soft(A_pred, A_label):
 
 
 def loss_rec_weight(A_pred, A_label, pos_weight):
-    a_logit = tf.sparse.to_dense(A_pred)
-    a_logit = tf.reshape(a_logit, [-1])
-    rec_loss = tf.nn.weighted_cross_entropy_with_logits(logits=a_logit, labels=A_label, pos_weight=pos_weight)
+    # a_logit = tf.sparse.to_dense(A_pred)
+    A_pred = tf.reshape(A_pred, [-1])
+    rec_loss = tf.nn.weighted_cross_entropy_with_logits(logits=A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight)
     rec_loss = tf.reduce_mean(rec_loss)
     return rec_loss
 

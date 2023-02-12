@@ -16,4 +16,15 @@ from blocks import NDP
 from spektral.utils import sparse
 from etc.utils import to_numpy
 
-plot_result()
+#plot_result()
+# A, X, _ =make_simple_dataset("Grid2d")
+# print(type(A))
+# A=sp_matrix_to_sp_tensor(A)
+# diag_deg, _ = np.histogram(A.nonzero()[0], np.arange(A.shape[0]+1))
+# print(len(diag_deg))
+# dim = A.shape[0]
+# diag_mat = np.zeros((dim**2, ))
+# diag_mat[np.arange(0, dim**2, dim+1)] = diag_deg
+# diag_mat.reshape((dim, dim))
+# print(diag_mat)
+# print(diag_mat.shape)
