@@ -65,13 +65,13 @@ class Autoencoder(Model):
 
         a_pool = tf.matmul(z, tf.transpose(z))
         pool_outputs[1] = a_pool
+        # pool_outputs[0]=z
         x_lift, a_lift = self.lift(pool_outputs)
+
 
         if self.post_processing:
             a_lift = tf.sparse.from_dense(a_lift)
             x_lift = self.skip([self.gnn2([x_lift, a_lift]), x_lift])
             x_lift = self.post(x_lift)
-        a_logit = tf.sparse.to_dense(a_lift)
-        a_logit = tf.reshape(a_logit, [-1])
 
-        return x_lift, a_lift, s, x_pool, a_pool, z_mean, z_log_std, a_logit
+        return x_lift, a_lift, s, x_pool, a_pool, z_mean, z_log_std

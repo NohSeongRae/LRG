@@ -18,17 +18,8 @@ physical_devices = tf.config.list_physical_devices("GPU")
 for i in range(len(physical_devices)):
     tf.config.experimental.set_memory_growth(physical_devices[i], True)
 
+from Losses import loss_fn, loss_rec_bce, loss_KL
 
-def loss_fn(X, X_pred):  # please modify this later: custom loss
-    """
-    compute loss
-    :param X: ground truth
-    :param X_pred: model output
-    :return: loss
-    """
-    loss = tf.keras.losses.mean_squared_error(X, X_pred)
-    loss = tf.reduce_mean(loss)
-    return loss
 
 
 def downsampling(inputs):
@@ -73,18 +64,10 @@ def main(X, A, S, learning_rate, es_patience, es_tol, pos_weight, norm,
     @tf.function
     def train_step(model, optimizer, X, A, S):
         with tf.GradientTape() as tape:
-            X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std, L_A_pred = model([X, A, S], training=True)
-            X_loss = loss_fn(X, X_pred)
-            # L_A_pred=tf.reshape(A_pred, [-1])
-            # L_A_label=tf.reshape(A_label, [-1])
-            # rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight))
-            # rec_loss = norm * tf.reduce_mean(
-            #     tf.nn.sigmoid_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4")))
-            bce = tf.keras.losses.BinaryCrossentropy(from_logits=True)
-            rec_loss = norm * bce(A_label.astype("f4"), L_A_pred)
-            kl_loss = (0.5 / len(X)) * tf.reduce_mean(
-                tf.reduce_sum(1 + 2 * model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)),
-                              1))
+            X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std= model([X, A, S], training=True)
+            X_loss = norm*loss_fn(X, X_pred)
+            rec_loss = loss_rec_bce(A_pred, A_label)
+            kl_loss=loss_KL(X, model_z_mean, model_z_log_std)
             # please modify this later: custom loss function
             total_loss = 10 * X_loss + 2 * rec_loss + kl_loss + sum(model.losses)
             loss_dic = {"X_loss": X_loss, "rec_loss": rec_loss, "kl_loss": kl_loss, "total_loss": total_loss}
@@ -165,6 +148,7 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
     # #checkpoint setting
     # checkpoint_path="saved_checkpoints/{}_{}_matrices.ckpt".format(method, name)
     # checkpoint_dir=os.path.dirname(checkpoint_path)
+
     # Run main
     results = []
     for r in range(runs):
@@ -181,20 +165,12 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
             A_label=A_label,
         )
         # evaluation
-        X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std, L_A_pred = model([X, A, S], training=True)
+        X_pred, A_pred, _, _, _, model_z_mean, model_z_log_std= model([X, A, S], training=True)
         X_loss = loss_fn(X, X_pred)
-        # L_A_pred = tf.reshape(A_pred, [-1])
-        # L_A_label = tf.reshape(A_label, [-1])
-        # rec_loss=norm*tf.reduce_mean(tf.nn.weighted_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4"), pos_weight=pos_weight))
-        # rec_loss = norm * tf.reduce_mean(
-        #     tf.nn.sigmoid_cross_entropy_with_logits(logits=L_A_pred, labels=A_label.astype("f4")))
-        bce=tf.keras.losses.BinaryCrossentropy(from_logits=True)
-        rec_loss=norm*bce(A_label.astype("f4"),L_A_pred)
-        kl_loss = (0.5 / len(X)) * tf.reduce_mean(
-            tf.reduce_sum(1 + 2 * model_z_log_std - tf.square(model_z_mean) - tf.square(tf.exp(model_z_log_std)), 1))
+        rec_loss =norm* loss_rec_bce(A_pred, A_label)
+        kl_loss=loss_KL(X, model_z_mean, model_z_log_std)
         # please modify this later: custom loss function
-        total_loss = 10 * X_loss + 2 * rec_loss + kl_loss + sum(
-            model.losses)  # please modify this later: custom loss function
+        total_loss = 10 * X_loss + 2 * rec_loss + kl_loss + sum(model.losses)  # please modify this later: custom loss function
         loss_dic = {"X_loss": X_loss, "rec_loss": rec_loss, "kl_loss": kl_loss, "total_loss": total_loss}
         # with writer.as_default():
         #     tf.summary.scalar('loss', total_loss, step=r)
@@ -206,7 +182,7 @@ def run_experiment(name, method, pooling, learning_rate, es_patience, es_tol, ru
     std_results = np.std(results, axis=0)
 
     # run trained model to get pooled graph
-    X_pred, A_pred, _, _, _, _, _, _ = model([X, A, S], training=False)
+    X_pred, A_pred, _, _, _, _, _ = model([X, A, S], training=False)
 
     # if there is selection mask, convert selection mask to selection matrix
     # S = to_numpy(S)
