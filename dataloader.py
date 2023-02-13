@@ -1,45 +1,37 @@
-import os
-import random
-import torch
+import pandas as pd
 import numpy as np
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader
+import networkx as nx
+from scipy import sparse
 
-sys.path.append('./preprocess')
-from generate_dataset import generate_dataset
+def data_loader(city_name):
+    node_file_path = "../datasets/cities/norm/" + city_name + "_node_norm_highway_one.csv"
+    edge_file_path = "../datasets/cities/norm/" + city_name + "_edge_norm_ver1_highway.csv"
 
-# get csv file from osmnx (datasets/cities/original에 원본 city csv 파일이 없을 경우)
-make_original = False
+    node = pd.read_csv('C:/Users/rlaqhdrb/Desktop/Data/norm/firenze_node_norm_highway_one.csv')
+    node_id = node['id']
+    node_lon = node['lon']
+    node_lat = node['lat']
+    node_highway = node['highway']
 
-# pre_process (self-loop, multi-edge 제거 및 node 좌표계 변환)
-pre_process = False
+    edge = pd.read_csv('C:/Users/rlaqhdrb/Desktop/Data/norm/firenze_edge_norm_ver1.csv')
+    edge_src = edge['src']
+    edge_dst = edge['dst']
 
-# transform to dgl
-make_dgl = True
-generate_dataset(make_original, pre_process, make_dgl)
+    G = nx.Graph()
 
-# data
+    # Node
+    node_list = []
 
-class RoadNetworkDataset(Dataset):
-    def __init__(self, phase, data_dir):
-        if phase=='train':
-            data_npz_path=os.path.join(data_dir, 'train_dataset.npz')
-        else: # test
-            data_npz_path=os.path.join(data_dir, 'test_dataset.npz')
+    for i in range(len(node_lon)):
+        node_list.append([node_lon[i], node_lat[i]])
 
-        Rdataset=np.load(data_npz_path, allow_pickle=True)
-        self.node=Rdataset["node"] # example!!!
-        """
-        implementation for self.edge, self.vertex, ...
-        """
-        data_norm_dir=os.path.join(data_dir, 'norm')
-        
-        if Rdataset is None:
-            assert Rdataset, 'Rdataset is None'
+    x = np.array(node_list)
 
-    def __len__(self):
-        return len(self.node)
+    # Edge
+    for i in range(len(edge_src)):
+        G.add_edge(edge_src[i], edge_dst[i])
 
-    def __getitem__(self, index):
-        if torch.is_tensor(index):
-            index=index.tolist()
+    A = nx.adjacency_matrix(G)
+    A = sparse.lil_matrix(A)
+
+    return A, x
