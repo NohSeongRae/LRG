@@ -4,16 +4,16 @@ import networkx as nx
 from scipy import sparse
 
 def data_loader(city_name):
-    node_file_path = "../datasets/cities/norm/" + city_name + "_node_norm_highway_one.csv"
-    edge_file_path = "../datasets/cities/norm/" + city_name + "_edge_norm_ver1_highway.csv"
+    node_file_path = "./datasets/cities/norm/" + city_name + "_node_norm_highway_one.csv"
+    edge_file_path = "./datasets/cities/norm/" + city_name + "_edge_norm_ver1_highway.csv"
 
-    node = pd.read_csv('C:/Users/rlaqhdrb/Desktop/Data/norm/firenze_node_norm_highway_one.csv')
+    node = pd.read_csv(node_file_path)
     node_id = node['id']
     node_lon = node['lon']
     node_lat = node['lat']
     node_highway = node['highway']
 
-    edge = pd.read_csv('C:/Users/rlaqhdrb/Desktop/Data/norm/firenze_edge_norm_ver1.csv')
+    edge = pd.read_csv(edge_file_path)
     edge_src = edge['src']
     edge_dst = edge['dst']
 
