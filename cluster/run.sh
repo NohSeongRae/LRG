@@ -12,7 +12,7 @@
 
 echo "I: full hostname: $(hostname -f)"
 
-module load GCC/9.3.0
+#module load GCC/9.3.0
 
 VERSION_CUDA='11.0.2'
 module load CUDA/${VERSION_CUDA}
