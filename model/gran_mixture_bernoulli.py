@@ -3,11 +3,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-
 EPS = np.finfo(np.float32).eps
 
 __all__ = ["GRANMixtureBernoulli"]
-
+def loss_fn(X, X_pred):
+    loss_func = nn.MSELoss()
+    loss = loss_func(X_pred, X)
+    return loss
 
 class GNN(nn.Module):
     def __init__(
@@ -36,6 +38,7 @@ class GNN(nn.Module):
         self.has_graph_output = has_graph_output
         self.output_hidden_dim = output_hidden_dim
         self.graph_output_dim = graph_output_dim
+        self.transformer_decoder_layer=nn.TransformerDecoderLayer(d_model=self.msg_dim, nhead=4)
 
         self.update_func = nn.ModuleList(
             [
@@ -221,13 +224,13 @@ class GRANMixtureBernoulli(nn.Module):
             num_layer=self.num_GNN_layers,
             has_attention=self.has_attention,
         )
-
+#feature decoder
         self.output_head = nn.Sequential(
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(inplace=True),
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.ReLU(inplace=True),
-            nn.Linear(self.hidden_dim, 3),  # fix magic number
+            nn.Linear(self.hidden_dim, 4),  # fix magic number
         )
 
         ### Loss functions
@@ -235,7 +238,7 @@ class GRANMixtureBernoulli(nn.Module):
         self.adj_loss_func = nn.BCEWithLogitsLoss(
             pos_weight=pos_weight, reduction="none"
         )
-        self.node_output_loss_func = nn.L1Loss()
+
 
     def _inference(
         self,
@@ -528,7 +531,7 @@ class GRANMixtureBernoulli(nn.Module):
 
             feats = feats.view(B * N * C, -1)
 
-            mae_loss = self.node_output_loss_func(out, feats[node_idx_feat])
+            mae_loss = loss_fn( feats[node_idx_feat],out)
 
             return adj_loss, mae_loss
         else:

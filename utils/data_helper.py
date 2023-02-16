@@ -13,7 +13,7 @@ import numpy as np
 from scipy import sparse as sp
 import networkx as nx
 import torch.nn.functional as F
-
+import pygsp
 
 __all__ = [
     "save_graph_list",
@@ -188,6 +188,18 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
             feats_ = elem["feats"]
             feats.append(feats_)
             graphs.append(g)
+
+    if graph_type=="grid":
+        graphs=[]
+        feats=[]
+        for i in range(10,20):
+            for j in range(10,20):
+                graphs.append(nx.grid_2d_graph(i,j))
+                g_temp = pygsp.graphs.Grid2d(N1=i, N2=j)
+                feats_=g_temp.coords.astype(np.float32)
+                feats.append(feats_)
+
+
 
     num_nodes = [gg.number_of_nodes() for gg in graphs]
     num_edges = [gg.number_of_edges() for gg in graphs]

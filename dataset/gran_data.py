@@ -404,12 +404,13 @@ class GRANData(object):
                 )
             ).float()  # B X C X N X N
 
+
             data["feats"] = torch.from_numpy(
                 np.stack(
                     [
                         np.pad(
                             bb["feats"],
-                            ((0, 0), (0, pad_size[ii]), (0, 0)),
+                            ((0, 0), (0, pad_size[ii]),(0, 0),(0, 0)),
                             "constant",
                             constant_values=0.0,
                         )

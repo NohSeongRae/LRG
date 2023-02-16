@@ -1,15 +1,15 @@
 ---
-exp_name: GRAN_featurepred
+exp_name: GRAN
 exp_dir: exp/GRAN
 runner: GranRunner
 use_horovod: false
 use_gpu: true
 device: cuda:0
-gpus: [0, 1]
+gpus: [0]
 seed: 1234
 dataset:
   loader_name: GRANData
-  name: gecko
+  name: grid
   data_path: data/
   node_order: DFS # k_core/BFS/degree_decent
   train_ratio: 0.8
@@ -26,9 +26,9 @@ model:
   is_sym: true
   block_size: 1
   sample_stride: 1
-  max_num_nodes: 3000
-  hidden_dim: 256
-  embedding_dim: 256
+  max_num_nodes: 361
+  hidden_dim: 128
+  embedding_dim: 128
   num_GNN_layers: 7
   num_GNN_prop: 1
   num_canonical_order: 1
@@ -40,19 +40,19 @@ train:
   lr_decay: 0.3
   lr_decay_epoch: [100000000] # no decay
   num_workers: 0
-  max_epoch: 10000
+  max_epoch: 3000
   batch_size: 1
   display_iter: 10
-  snapshot_epoch: 1
-  valid_epoch: 10
+  snapshot_epoch: 100
+  valid_epoch: 50
   lr: 1.0e-4
   wd: 0.0e-4
   momentum: 0.9
   shuffle: true
   is_resume: false
   resume_epoch: 5000
-  resume_dir: #exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-01-12-18-44_3251158
-  resume_model: #model_snapshot_0000010.pth
+  resume_dir: # exp/GRAN/your_exp_folder
+  resume_model: model_snapshot_0005000.pth
 test:
   batch_size: 20
   num_workers: 0
@@ -63,6 +63,5 @@ test:
   num_vis: 20
   vis_num_row: 5 # visualize `num_vis` samples in `vis_num_row` rows
   better_vis: true
-  test_model_dir: /home/paliotta/projects/gran/exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-23-11-06-02_1224433
-  test_model_name: model_snapshot_0000001.pth
-  test_model: /home/paliotta/projects/gran/exp/GRAN/GRANMixtureBernoulli_gecko_2021-Sep-23-11-06-02_1224433/model_snapshot_0000001.pth
+  test_model_dir: snapshot_model
+  test_model_name: gran_grid.pth
