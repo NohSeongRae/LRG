@@ -369,7 +369,7 @@ class GRANData(object):
         C = self.num_canonical_order
         batch_data = []
 
-        for ff in range(self.num_fwd_pass):
+        for ff in range(self.num_fwd_pass): #ff=1
             data = {}
             batch_pass = []
             for bb in batch:

@@ -12,8 +12,8 @@ dataset:
   name: grid
   data_path: data/
   node_order: DFS # k_core/BFS/degree_decent
-  train_ratio: 0.8
-  dev_ratio: 0.2
+  train_ratio: 1
+  dev_ratio: 0
   num_subgraph_batch: 50 # number of subgraphs per mini-batch
   num_fwd_pass: 1
   has_node_feat: false
@@ -40,11 +40,11 @@ train:
   lr_decay: 0.3
   lr_decay_epoch: [100000000] # no decay
   num_workers: 0
-  max_epoch: 3000
+  max_epoch: 3
   batch_size: 1
   display_iter: 10
   snapshot_epoch: 100
-  valid_epoch: 50
+  valid_epoch: 0
   lr: 1.0e-4
   wd: 0.0e-4
   momentum: 0.9

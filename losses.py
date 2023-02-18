@@ -7,3 +7,5 @@ import numpy as np
 def loss_fn(X, X_pred):
     loss=nn.MSELoss(X, X_pred)
     return loss
+
+

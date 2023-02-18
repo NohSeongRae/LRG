@@ -8,6 +8,7 @@ import pickle
 from collections import defaultdict
 from tqdm import tqdm
 import concurrent.futures
+import sys
 
 import torch
 import torch.nn as nn
@@ -64,7 +65,7 @@ def get_graph(adj, feats=None):
     adj = adj[~np.all(adj == 0, axis=1)]
     adj = adj[:, ~np.all(adj == 0, axis=0)]
     adj = np.asmatrix(adj)
-    G = nx.from_numpy_matrix(adj)
+    G = nx.from_numpy_array(adj)
     return G
 
 
@@ -142,7 +143,7 @@ class GranRunner(object):
         self.graphs_dev = self.graphs[: self.num_dev]
         self.feats_dev = self.feats[: self.num_dev]
         self.graphs_test = self.graphs[self.num_train :]
-        self.feats_test = self.feats[: self.num_train]
+        self.feats_test = self.feats[ self.num_train :]
 
         self.config.dataset.sparse_ratio = compute_edge_ratio(self.graphs_train)
         logger.info(
@@ -183,6 +184,7 @@ class GranRunner(object):
         train_dataset = eval(self.dataset_conf.loader_name)(
             self.config, self.graphs_train, node_feats=self.feats_train, tag="train"
         )
+
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=self.train_conf.batch_size,
@@ -257,8 +259,8 @@ class GranRunner(object):
                         iter_count += 1
 
                 avg_train_loss = 0.0
-                avg_train_loss_adj = 0.0
-                avg_train_loss_mae = 0.0
+                # avg_train_loss_adj = 0.0
+                # avg_train_loss_mae = 0.0
                 for ff in range(self.dataset_conf.num_fwd_pass):
                     batch_fwd = []
 
@@ -319,8 +321,6 @@ class GranRunner(object):
                         train_loss_mae = train_loss_mae.mean()
 
                         train_loss = train_loss_mae + 0.1 * train_loss_adj
-                        avg_train_loss_adj += train_loss_adj.cpu().data.numpy()
-                        avg_train_loss_mae += train_loss_mae.cpu().data.numpy()
                         avg_train_loss += train_loss
 
                         # assign gradient
@@ -347,8 +347,8 @@ class GranRunner(object):
 
                 if iter_count % self.train_conf.display_iter == 0 or iter_count == 1:
                     logger.info(
-                        "Loss @ epoch {:04d} iteration {:08d} = {}".format(
-                            epoch + 1, iter_count, train_loss
+                        "Loss @ epoch {:04d} iteration {:08d} = total_loss: {}, mae_loss: {}, adj_loss: {}".format(
+                            epoch + 1, iter_count, train_loss, train_loss_mae, train_loss_adj
                         )
                     )
 
@@ -369,7 +369,6 @@ class GranRunner(object):
         self.writer.close()
 
         return 1
-
     def test(self):
         self.config.save_dir = self.test_conf.test_model_dir
 
@@ -485,6 +484,8 @@ class GranRunner(object):
                     is_single=True,
                     layout="spring",
                 )
+
+        sys.exit(0) # skip evaluation
 
         ### Evaluation
         if self.config.dataset.name in ["lobster"]:
