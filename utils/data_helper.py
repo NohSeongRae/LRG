@@ -198,8 +198,19 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
                 g_temp = pygsp.graphs.Grid2d(N1=i, N2=j)
                 feats_=g_temp.coords.astype(np.float32)
                 feats.append(feats_)
+        #         print(f"feats_: {feats_}")
+        #
+        # print(f"feats: {feats}")
 
 
+    elif graph_type == 'FIRSTMM_DB':
+        graphs = graph_load_batch(
+            data_dir,
+            min_num_nodes=0,
+            max_num_nodes=10000,
+            name='FIRSTMM_DB',
+            node_attributes=False,
+            graph_labels=True)
 
     num_nodes = [gg.number_of_nodes() for gg in graphs]
     num_edges = [gg.number_of_edges() for gg in graphs]
@@ -217,5 +228,6 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
     if len(feats) > 0:
         return graphs, feats
     else:
-        return graphs
+        feats=[]
+        return graphs, feats
 

@@ -195,6 +195,7 @@ class GRANMixtureBernoulli(nn.Module):
         self.has_rand_feat = False  # use random feature instead of 1-of-K encoding
         self.att_edge_dim = 64
         self.coord_feat_dim=2
+        self.forward_tick=0
 
         self.output_theta = nn.Sequential(
             nn.Linear(self.hidden_dim, self.hidden_dim),
@@ -255,12 +256,15 @@ class GRANMixtureBernoulli(nn.Module):
     ):
         """ generate adj in row-wise auto-regressive fashion """
 
+        print(f"A_pad.shape: {A_pad.shape}")
         B, C, N_max, _ = A_pad.shape
         H = self.hidden_dim
         K = self.block_size
         A_pad = A_pad.view(B * C * N_max, -1)
 
-        # print(f"A_pad.shape: {A_pad.shape}")
+        self.forward_tick+=1
+        print(f"forward.tick:{self.forward_tick}")
+        print(f"A_pad.shape after .view: {A_pad.shape}")
         # print(f"A_pad.type: {type(A_pad)}")
         # print(f"A_pad: {A_pad}")
 
@@ -269,14 +273,18 @@ class GRANMixtureBernoulli(nn.Module):
         else:
             node_feat = A_pad  # BCN_max X N_max
 
+        print(f"node_feat.shape, after encoder: {node_feat.shape}")
         ### GNN inference
         # pad zero as node feature for newly generated nodes (1st row)
         node_feat = F.pad(
             node_feat, (0, 0, 1, 0), "constant", value=0.0
         )  # (BCN_max + 1) X N_max(or H)
 
+        print(f"node_feat.shape, after pad: {node_feat.shape}")
         # create symmetry-breaking edge feature for the newly generated nodes
         att_idx = att_idx.view(-1, 1)
+
+        print(f"att_idx.shape, after view (-1, 1): {att_idx.shape}")
 
         if self.has_rand_feat:
             # create random feature
@@ -306,8 +314,11 @@ class GRANMixtureBernoulli(nn.Module):
         node_state = self.decoder(
             node_feat[node_idx_feat], edges, edge_feat=att_edge_feat
         )
+        print(f"node_state.shape, after GNN decoder: {node_state.shape}")
 
         out = self.output_head(node_state)
+
+        print(f"out.shape, after output_head decoder: {out.shape}")
 
         ### Pairwise predict edges
         diff = node_state[node_idx_gnn[:, 0], :] - node_state[node_idx_gnn[:, 1], :] # I think this compute the whole graph in once - we need to serialize it
@@ -546,7 +557,9 @@ class GRANMixtureBernoulli(nn.Module):
                 self.num_canonical_order,
             )
 
+            print(f"feats.shape: {feats.shape}")
             feats = feats.view(B * N * C, -1)
+            print(f"feats.shape after .view: {feats.shape}")
 
             mae_loss = loss_fn(feats[node_idx_feat], out)
 
