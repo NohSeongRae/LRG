@@ -3,7 +3,7 @@ from dataloader import data_loader
 # available cities
 # madrid, munchen, minneapolis, saintpaul, richmond, littlerock, portland, washington, paris, firenze, atlanta, frankfurtammain
 
-A, x1, x2, x3, x4, x5 = data_loader("minneapolis")
+A, x1, x2, x3, x4, x5 = data_loader("firenze")
 
 # type(A) : <class 'scipy.sparse._lil.lil_matrix'>
 # type(x1) : <class 'numpy.ndarray'>
@@ -18,5 +18,4 @@ example of x3
 print(A)
 # print(type(A))
 print(x3)
-
 
