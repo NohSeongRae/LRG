@@ -393,17 +393,23 @@ class GRANMixtureBernoulli(nn.Module):
 
                 # reset to discard overlap generation
                 A[:, ii:, :] = 0.0
-                C[:, ii:, :]= np.inf
+                C[:, ii:, :]= 0.0
                 A = torch.tril(A, diagonal=-1)
 
                 if ii >= K:
                     if self.dimension_reduce:
+                        # print(f"C.shape:{C.shape}")
                         A_in=self.decoder_input(A[:, ii - K: ii, :N] )#A[:, ii, :N]
                         C_in=self.decoder_input_coords(C[:, ii - K: ii, :])
-                        model_in=torch.add(A_in, C_in)
-                        node_state[:, ii - K: ii, :] = self.decoder_input(
-                            model_in[:, ii - K: ii, :N] #A[:, ii, :N]
-                        )
+                        # print(f"C_in.shape: {C_in.shape}")
+                        # print(f"A_in.shape: {A_in.shape}")
+                        model_in = (torch.add(A_in, C_in))
+                        # print(f"model_in[:, ii - K: ii, :].shape: {model_in[:, ii - K: ii, :].shape}")
+                        # print(f"node_state[:, ii - K: ii, :].shape: {node_state[:, ii - K: ii, :].shape}")
+
+
+                        node_state[:, ii - K: ii, :] = model_in
+
 
                     else:
                         node_state[:, ii - K: ii, :] = A[:, ii - S: ii, :N]
@@ -412,7 +418,7 @@ class GRANMixtureBernoulli(nn.Module):
                         A_in = self.decoder_input(A[:, :ii, :N])  # A[:, ii, :N]
                         C_in = self.decoder_input_coords(C[:,  :ii, :])
                         model_in = torch.add(A_in, C_in)
-                        node_state[:, :ii, :] = self.decoder_input(model_in[:, :ii, :N])
+                        node_state[:, :ii, :] = model_in
                     else:
                         node_state[:, :ii, :] = A[:, ii - S: ii, :N]
 
@@ -463,6 +469,12 @@ class GRANMixtureBernoulli(nn.Module):
                     node_state_in.view(-1, H), edges, edge_feat=att_edge_feat
                 )
                 coords = self.output_head(node_state_out)
+                coords=coords.transpose(0,1)
+                coords=torch.mean(coords, 1)
+                coords=coords.view(1,1,2)
+                # print(f"node_state_out.shape: {node_state_out.shape}")
+                # print(f"coords.shape: {coords.shape}")
+                # print(f"coords: {coords}")
 
                 node_state_out = node_state_out.view(B, jj, -1)
 
@@ -477,6 +489,7 @@ class GRANMixtureBernoulli(nn.Module):
                 # coords=self.output_head(node_state_out)
                 # coords=np.array(coords.cpu())
                 # out.append(coords)
+
 
                 diff = diff.view(-1, node_state.shape[2])
                 log_theta = self.output_theta(diff)
@@ -499,7 +512,8 @@ class GRANMixtureBernoulli(nn.Module):
 
                 prob = torch.stack(prob, dim=0)
                 A[:, ii:jj, :jj] = torch.bernoulli(prob[:, : jj - ii, :])
-                C[:, ii:jj, :]=coords
+                C[:, ii, :]=coords
+
 
 
 

@@ -22,6 +22,8 @@ __all__ = [
     "preprocess_graph_list",
     "create_graphs",
 ]
+from utils.level4.data_sort import get_whole_graph_4
+
 def one_hot_encoding(city_name):
     city_name_file = (city_name.lower()).replace(" ", "")
     edge_norm_file_name = "D:/LRG/datasets_dev/cities/norm/" + city_name_file + "_edge_norm_ver1_highway.csv"
@@ -571,7 +573,7 @@ def get_whole_graph(city_name):
         if s3[2][prior_order3[i]] not in node_list:
             node_list.append(s3[2][prior_order3[i]])
             feature_lists.append(feats_3[i])
-    print("3 node", len(node_list))
+    # print("3 node", len(node_list))
 
     node_list3 = node_list
 
@@ -758,7 +760,7 @@ def graph_load_batch(
     return graphs
 
 
-def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
+def create_graphs(graph_type,level, data_dir="data", noise=10.0, seed=1234):
     ### load datasets
     graphs = []
     feats = []
@@ -792,7 +794,11 @@ def create_graphs(graph_type, data_dir="data", noise=10.0, seed=1234):
         # print(f"feats: {feats}")
 
     elif graph_type == 'Firenze':
-        graphs, adj_, feats = get_whole_graph("Firenze")
+        if level==5:
+            graphs, adj_, feats = get_whole_graph("Firenze")
+        elif level==4:
+
+            graphs, adj_, feats =get_whole_graph_4("Firenze")
 
 
 

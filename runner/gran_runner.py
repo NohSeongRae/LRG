@@ -116,7 +116,7 @@ class GranRunner(object):
         ### load graphs
 
         self.graphs, self.feats = create_graphs(
-            config.dataset.name, data_dir=config.dataset.data_path
+            config.dataset.name,config.dataset.city_level, data_dir=config.dataset.data_path
         )
 
         self.train_ratio = config.dataset.train_ratio
@@ -326,7 +326,7 @@ class GranRunner(object):
                         train_loss_adj = train_loss_adj.mean()
                         train_loss_mae = train_loss_mae.mean()
 
-                        train_loss = train_loss_mae + train_loss_adj
+                        train_loss = train_loss_mae + 0.1*train_loss_adj
                         avg_train_loss += train_loss
 
                         # assign gradient
@@ -447,9 +447,10 @@ class GranRunner(object):
         nx.draw_networkx_nodes(G_1, pos, node_size=0.5, node_color='black')
         nx.draw_networkx_edges(G_1, pos, alpha=0.5, width=1)
         plt.axis('off')
-        plt.show()
-        save_path = "D:/LRG/datasets_dev/cities/norm/" + "Firenze_t1" + ".png"
+        save_path = "D:/LRG/datasets_dev/cities/norm/" + "Firenze_t2" + ".png"
         plt.savefig(save_path)
+        plt.show()
+
 
 
 

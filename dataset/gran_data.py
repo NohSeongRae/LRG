@@ -32,6 +32,7 @@ class GRANData(object):
         self.is_sample_subgraph = config.dataset.is_sample_subgraph
         self.num_subgraph_batch = config.dataset.num_subgraph_batch
         self.is_overwrite_precompute = config.dataset.is_overwrite_precompute
+        self.city_level=config.dataset.city_level
         if config.dataset.name == "Firenze":
             self.is_firenze=True
         else:
@@ -42,7 +43,7 @@ class GRANData(object):
 
         self.save_path = os.path.join(
             self.data_path,
-            "{}_{}_{}_{}_{}_{}_{}_precompute_small".format(
+            "{}_{}_{}_{}_{}_{}_{}_{}_precompute_small".format(
                 config.model.name,
                 config.dataset.name,
                 tag,
@@ -50,6 +51,7 @@ class GRANData(object):
                 self.stride,
                 self.num_canonical_order,
                 self.node_order,
+                self.city_level
             ),
         )
 
