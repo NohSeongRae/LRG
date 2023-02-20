@@ -1,4 +1,3 @@
-import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -222,7 +221,7 @@ class GRANMixtureBernoulli(nn.Module):
             self.decoder_input = nn.Sequential(
                 nn.Linear(self.max_num_nodes, self.embedding_dim)
             )
-            self.decoder_input_feat=nn.Sequential(nn.Linear(self.coord_feat_dim, self.embedding_dim))
+            self.decoder_input_coords=nn.Sequential(nn.Linear(self.coord_feat_dim, self.embedding_dim))
 
         else:
             self.embedding_dim = self.max_num_nodes
@@ -253,6 +252,7 @@ class GRANMixtureBernoulli(nn.Module):
     def _inference(
             self,
             A_pad=None,
+            C_pad=None,
             edges=None,
             node_idx_gnn=None,
             node_idx_feat=None,
@@ -274,6 +274,7 @@ class GRANMixtureBernoulli(nn.Module):
         H = self.hidden_dim
         K = self.block_size
         A_pad = A_pad.view(B * C * N_max, -1)
+        C_pad=C_pad.view(B*C*N_max, -1)
 
         self.forward_tick+=1
 
@@ -283,8 +284,12 @@ class GRANMixtureBernoulli(nn.Module):
 
         if self.dimension_reduce:
             node_feat = self.decoder_input(A_pad)  # BCN_max X H
+            coords_feats=self.decoder_input_coords(C_pad)
         else:
             node_feat = A_pad  # BCN_max X N_max
+            coords_feats=C_pad
+        assert(node_feat.shape == coords_feats.shape), 'adj - coords dimension mismatch'
+        node_feat=torch.add(node_feat,coords_feats )
 
         # print(f"node_feat.shape, after encoder: {node_feat.shape}")
         ### GNN inference
@@ -292,6 +297,7 @@ class GRANMixtureBernoulli(nn.Module):
         node_feat = F.pad(
             node_feat, (0, 0, 1, 0), "constant", value=0.0
         )  # (BCN_max + 1) X N_max(or H)
+
 
         # print(f"node_feat.shape, after pad: {node_feat.shape}")
         # create symmetry-breaking edge feature for the newly generated nodes
@@ -333,7 +339,7 @@ class GRANMixtureBernoulli(nn.Module):
         )
         # print(f"node_state.shape, after GNN decoder: {node_state.shape}")
 
-        coords = self.output_head(node_state)
+        coords = self.output_head(node_feat[node_idx_feat])
 
         # print(f"out.shape (output coordinates), after output_head decoder: {coords.shape}")
 
@@ -369,6 +375,7 @@ class GRANMixtureBernoulli(nn.Module):
                 N_pad = N
 
             A = torch.zeros(B, N_pad, N_pad).to(self.device)
+            C = torch.zeros(B, N_pad, self.coord_feat_dim).to(self.device)
             # features_out = torch.zeros(B, N_pad, 3).to(self.device)
             dim_input = (
                 self.embedding_dim if self.dimension_reduce else self.max_num_nodes
@@ -377,7 +384,7 @@ class GRANMixtureBernoulli(nn.Module):
             ### cache node state for speed up
             node_state = torch.zeros(B, N_pad, dim_input).to(self.device)
 
-            out=[]
+
             for ii in range(0, N_pad, S):
                 # for ii in range(0, 3530, S):
                 jj = ii + K #jj = i + 1
@@ -386,18 +393,26 @@ class GRANMixtureBernoulli(nn.Module):
 
                 # reset to discard overlap generation
                 A[:, ii:, :] = 0.0
+                C[:, ii:, :]= np.inf
                 A = torch.tril(A, diagonal=-1)
 
                 if ii >= K:
                     if self.dimension_reduce:
+                        A_in=self.decoder_input(A[:, ii - K: ii, :N] )#A[:, ii, :N]
+                        C_in=self.decoder_input_coords(C[:, ii - K: ii, :])
+                        model_in=torch.add(A_in, C_in)
                         node_state[:, ii - K: ii, :] = self.decoder_input(
-                            A[:, ii - K: ii, :N] #A[:, ii, :N]
+                            model_in[:, ii - K: ii, :N] #A[:, ii, :N]
                         )
+
                     else:
                         node_state[:, ii - K: ii, :] = A[:, ii - S: ii, :N]
                 else:
                     if self.dimension_reduce:
-                        node_state[:, :ii, :] = self.decoder_input(A[:, :ii, :N])
+                        A_in = self.decoder_input(A[:, :ii, :N])  # A[:, ii, :N]
+                        C_in = self.decoder_input_coords(C[:,  :ii, :])
+                        model_in = torch.add(A_in, C_in)
+                        node_state[:, :ii, :] = self.decoder_input(model_in[:, :ii, :N])
                     else:
                         node_state[:, :ii, :] = A[:, ii - S: ii, :N]
 
@@ -447,6 +462,8 @@ class GRANMixtureBernoulli(nn.Module):
                 node_state_out = self.decoder(
                     node_state_in.view(-1, H), edges, edge_feat=att_edge_feat
                 )
+                coords = self.output_head(node_state_out)
+
                 node_state_out = node_state_out.view(B, jj, -1)
 
                 idx_row, idx_col = np.meshgrid(np.arange(ii, jj), np.arange(jj))
@@ -482,10 +499,12 @@ class GRANMixtureBernoulli(nn.Module):
 
                 prob = torch.stack(prob, dim=0)
                 A[:, ii:jj, :jj] = torch.bernoulli(prob[:, : jj - ii, :])
+                C[:, ii:jj, :]=coords
 
-            out = self.output_head(node_state_out)
+
+
             #maybe need to be pinned in gpu or already is
-            features_out = out
+            features_out = C
             # features_out=np.array(features_out)
             ### make it symmetric
             if self.is_sym:
@@ -509,6 +528,7 @@ class GRANMixtureBernoulli(nn.Module):
 
       Args:
         A_pad: B X C X N_max X N_max, padded adjacency matrix
+        C_pad:  B X C X N_max X 2, coordinates of nodes
         node_idx_gnn: M X 2, node indices of augmented edges
         node_idx_feat: N X 1, node indices of subgraphs for indexing from feature
                       (0 indicates indexing from 0-th row of feature which is
@@ -553,7 +573,7 @@ class GRANMixtureBernoulli(nn.Module):
             else None
         )
 
-        feats = input_dict["feats"] if "feats" in input_dict else None
+        C_pad = input_dict["feats"] if "feats" in input_dict else None
 
         N_max = self.max_num_nodes
 
@@ -563,6 +583,7 @@ class GRANMixtureBernoulli(nn.Module):
             ### compute adj loss
             log_theta, log_alpha, out = self._inference(
                 A_pad=A_pad,
+                C_pad=C_pad,
                 edges=edges,
                 node_idx_gnn=node_idx_gnn,
                 node_idx_feat=node_idx_feat,
@@ -582,12 +603,12 @@ class GRANMixtureBernoulli(nn.Module):
             )
 
             # print(f"feats.shape: {feats.shape}")
-            feats = feats.view(B * N * C, -1)
+            C_pad = C_pad.view(B * N * C, -1)
             # feats=feats.view()
             # print(f"feats.shape after .view: {feats.shape}")
             # print("@" * 80)
 
-            mae_loss = loss_fn(feats[node_idx_feat], out)
+            mae_loss = loss_fn(C_pad[node_idx_feat], out)
 
             return adj_loss, mae_loss
         else: #test

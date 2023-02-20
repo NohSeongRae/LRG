@@ -326,7 +326,7 @@ class GranRunner(object):
                         train_loss_adj = train_loss_adj.mean()
                         train_loss_mae = train_loss_mae.mean()
 
-                        train_loss = train_loss_mae + 0.1 * train_loss_adj
+                        train_loss = train_loss_mae + train_loss_adj
                         avg_train_loss += train_loss
 
                         # assign gradient
@@ -436,12 +436,12 @@ class GranRunner(object):
         t_A=A_pred[0]
         t_F=feats_pred[0]
         print(f"t_F: {t_F}")
+
         G_1 = nx.from_numpy_array(t_A)
-
         pos_dict = {}
-
-        for i in range(len(t_F[0])):
-            pos_dict[i] = (t_F[0][i][0][0], t_F[0][i][0][1])
+        print(len(t_F))
+        for i in range(len(t_F)):
+            pos_dict[i] = (t_F[i][0], t_F[i][1])
 
         pos = pos_dict
         nx.draw_networkx_nodes(G_1, pos, node_size=0.5, node_color='black')

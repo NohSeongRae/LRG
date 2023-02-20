@@ -375,7 +375,7 @@ class GRANData(object):
                 data["feats"] = np.stack(node_feats_list, axis=0)
                 # data["feats"] = np.stack(ground_truth_feats, axis=0)
 
-            data["adj"] = np.tril(np.stack(adj_list, axis=0), k=-1)
+            data["adj"] = np.tril(np.stack(adj_list, axis=0), k=-1) # dense adjs (ground truth, num = number of canonical ordering)
             data["edges"] = torch.cat(edges, dim=1).t().long()
             data["node_idx_gnn"] = np.concatenate(node_idx_gnn)
             data["node_idx_feat"] = np.concatenate(node_idx_feat)
@@ -458,7 +458,7 @@ class GRANData(object):
                     )
                 ).float()
 
-                temp=data["feats"]
+                # temp=data["feats"]
                 # print(f"collate_fn, data[feats].shape: {temp.shape}")
 
             idx_base = np.array([0] + [bb["num_count"] for bb in batch_pass])

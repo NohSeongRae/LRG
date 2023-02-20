@@ -63,5 +63,5 @@ test:
   num_vis: 20
   vis_num_row: 3 # visualize `num_vis` samples in `vis_num_row` rows
   better_vis: true
-  test_model_dir: ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-20-06-14-15_288960
-  test_model_name: model_snapshot_0001300.pth
+  test_model_dir: ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-20-14-54-40_301924
+  test_model_name: model_snapshot_0020000.pth
