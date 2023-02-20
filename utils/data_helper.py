@@ -344,6 +344,8 @@ def one_hot_encoding(city_name):
     feature_list = [feature_list1, feature_list2, feature_list3, feature_list4, feature_list5]
     P_ = [P1_2, P1_3, P1_4, P1_5, P2_3, P2_4, P2_5, P3_4, P3_5, P4_5]
 
+    # print(feature_list[3])
+
     return sort_dict, g, feature_list, P_
 def get_graph_data(sort_dict, g, feature_list, num, p_=None, prior_node="None"):
     node_degree_list = [(n, d) for n, d in g.degree()]
