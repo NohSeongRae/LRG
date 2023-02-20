@@ -9,12 +9,12 @@ gpus: [0]
 seed: 1234
 dataset:
   loader_name: GRANData
-  name: grid
+  name: Firenze
   data_path: data/
   node_order: DFS # k_core/BFS/degree_decent
   train_ratio: 1
   dev_ratio: 0
-  num_subgraph_batch: 50 # number of subgraphs per mini-batch
+  num_subgraph_batch: 1 # number of subgraphs per mini-batch
   num_fwd_pass: 1
   has_node_feat: true
   is_save_split: false
@@ -26,9 +26,9 @@ model:
   is_sym: true
   block_size: 1
   sample_stride: 1
-  max_num_nodes: 361
-  hidden_dim: 128
-  embedding_dim: 128
+  max_num_nodes: 6249
+  hidden_dim: 256
+  embedding_dim: 256
   num_GNN_layers: 7
   num_GNN_prop: 1
   num_canonical_order: 1
@@ -37,10 +37,10 @@ model:
   edge_weight: 1.0e+0
 train:
   optimizer: Adam
-  lr_decay: 0.3
+  lr_decay: 0.1
   lr_decay_epoch: [100000000] # no decay
   num_workers: 0
-  max_epoch: 10
+  max_epoch: 20000
   batch_size: 1
   display_iter: 10
   snapshot_epoch: 100
@@ -54,14 +54,14 @@ train:
   resume_dir: # exp/GRAN/your_exp_folder
   resume_model: model_snapshot_0005000.pth
 test:
-  batch_size: 20
+  batch_size: 1
   num_workers: 0
-  num_test_gen: 20 # number of generated samples
-  is_vis: true
+  num_test_gen: 1 # number of generated samples
+  is_vis: false
   is_single_plot: false # visualize `num_vis` samples in a single image
   is_test_ER: false # test Erdos-Renyi baseline
   num_vis: 20
-  vis_num_row: 5 # visualize `num_vis` samples in `vis_num_row` rows
+  vis_num_row: 3 # visualize `num_vis` samples in `vis_num_row` rows
   better_vis: true
-  test_model_dir: ./exp/GRAN/GRANMixtureBernoulli_grid_2023-Feb-16-15-22-23_47008
-  test_model_name: model_snapshot_0001700.pth
+  test_model_dir: ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-20-06-14-15_288960
+  test_model_name: model_snapshot_0001300.pth

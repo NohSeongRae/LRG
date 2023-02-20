@@ -10,10 +10,14 @@ __all__ = ["GRANMixtureBernoulli"]
 
 
 def loss_fn(X, X_pred):
+    # print(f"X.shape is : {X.shape}")
+    # print(f"X_pred.shape is : {X_pred.shape}")
     loss_func = nn.MSELoss()
     loss = loss_func(X_pred, X)
     return loss
 
+# def road_distance_loss(i, j):
+#     return
 
 class GNN(nn.Module):
     def __init__(
@@ -255,16 +259,25 @@ class GRANMixtureBernoulli(nn.Module):
             att_idx=None,
     ):
         """ generate adj in row-wise auto-regressive fashion """
+        # print("<<"*80)
+        # print(" ")
+        # print("<<" * 80)
+        # print(f"forward.tick:{self.forward_tick}")
+        # print(f"A_pad.shape: {A_pad.shape}")
+        # print(f"edges.shape: {edges.shape}")
+        # print(f"node_idx_gnn.shape: {node_idx_gnn.shape}")
+        # print(f"node_idx_feat.shape: {node_idx_feat.shape}")
+        # print(f"att_idx.shape: {att_idx.shape}")
+        # print("@"*80)
 
-        print(f"A_pad.shape: {A_pad.shape}")
         B, C, N_max, _ = A_pad.shape
         H = self.hidden_dim
         K = self.block_size
         A_pad = A_pad.view(B * C * N_max, -1)
 
         self.forward_tick+=1
-        print(f"forward.tick:{self.forward_tick}")
-        print(f"A_pad.shape after .view: {A_pad.shape}")
+
+        # print(f"A_pad.shape after .view: {A_pad.shape}")
         # print(f"A_pad.type: {type(A_pad)}")
         # print(f"A_pad: {A_pad}")
 
@@ -273,18 +286,20 @@ class GRANMixtureBernoulli(nn.Module):
         else:
             node_feat = A_pad  # BCN_max X N_max
 
-        print(f"node_feat.shape, after encoder: {node_feat.shape}")
+        # print(f"node_feat.shape, after encoder: {node_feat.shape}")
         ### GNN inference
         # pad zero as node feature for newly generated nodes (1st row)
         node_feat = F.pad(
             node_feat, (0, 0, 1, 0), "constant", value=0.0
         )  # (BCN_max + 1) X N_max(or H)
 
-        print(f"node_feat.shape, after pad: {node_feat.shape}")
+        # print(f"node_feat.shape, after pad: {node_feat.shape}")
         # create symmetry-breaking edge feature for the newly generated nodes
         att_idx = att_idx.view(-1, 1)
 
-        print(f"att_idx.shape, after view (-1, 1): {att_idx.shape}")
+        # print(f"att_idx.shape, after view (-1, 1): {att_idx.shape}")
+        # print("@" * 80)
+
 
         if self.has_rand_feat:
             # create random feature
@@ -309,27 +324,35 @@ class GRANMixtureBernoulli(nn.Module):
                 1, att_idx[[edges[:, 1]]] + self.att_edge_dim, 1
             )
 
+        # print(f"att_edge_feat.shape: {att_edge_feat.shape}")
+
         # GNN inference
         # N.B.: node_feat is shared by multiple subgraphs within the same batch
         node_state = self.decoder(
             node_feat[node_idx_feat], edges, edge_feat=att_edge_feat
         )
-        print(f"node_state.shape, after GNN decoder: {node_state.shape}")
+        # print(f"node_state.shape, after GNN decoder: {node_state.shape}")
 
-        out = self.output_head(node_state)
+        coords = self.output_head(node_state)
 
-        print(f"out.shape, after output_head decoder: {out.shape}")
+        # print(f"out.shape (output coordinates), after output_head decoder: {coords.shape}")
 
         ### Pairwise predict edges
         diff = node_state[node_idx_gnn[:, 0], :] - node_state[node_idx_gnn[:, 1], :] # I think this compute the whole graph in once - we need to serialize it
-        #out = self.output_head(node_state[
+
+        # print(f"node_state[node_idx_gnn[node_idx_feat].shape, :] :{node_state[node_idx_gnn[node_idx_feat], :].shape} ")
+        # print(f"node_state[node_idx_gnn[:,0].shape, :] :{node_state[node_idx_gnn[:,0], :].shape} ")
+        # print(f"node_state[node_idx_gnn[:,1].shape, :] :{node_state[node_idx_gnn[:, 1], :].shape} ")
+        # print(f"diff.shape: {diff.shape}")
+        #
+        # print("@" * 80)
 
         log_theta = self.output_theta(diff)  # B X (tt+K)K
         log_alpha = self.output_alpha(diff)  # B X (tt+K)K
         log_theta = log_theta.view(-1, self.num_mix_component)  # B X CN(N-1)/2 X K
         log_alpha = log_alpha.view(-1, self.num_mix_component)  # B X CN(N-1)/2 X K
 
-        return log_theta, log_alpha, out
+        return log_theta, log_alpha, coords
 
     def _sampling(self, B):
         """ generate adj in row-wise auto-regressive fashion """
@@ -346,7 +369,7 @@ class GRANMixtureBernoulli(nn.Module):
                 N_pad = N
 
             A = torch.zeros(B, N_pad, N_pad).to(self.device)
-            features_out = torch.zeros(B, N_pad, 3).to(self.device)
+            # features_out = torch.zeros(B, N_pad, 3).to(self.device)
             dim_input = (
                 self.embedding_dim if self.dimension_reduce else self.max_num_nodes
             )
@@ -434,8 +457,9 @@ class GRANMixtureBernoulli(nn.Module):
                         node_state_out[:, idx_row, :] - node_state_out[:, idx_col, :]
                 )  # B X (ii+K)K X H
 
-                coords=self.output_head(node_state_out[:,idx_row,:])
-                out.append(coords)
+                # coords=self.output_head(node_state_out)
+                # coords=np.array(coords.cpu())
+                # out.append(coords)
 
                 diff = diff.view(-1, node_state.shape[2])
                 log_theta = self.output_theta(diff)
@@ -459,10 +483,10 @@ class GRANMixtureBernoulli(nn.Module):
                 prob = torch.stack(prob, dim=0)
                 A[:, ii:jj, :jj] = torch.bernoulli(prob[:, : jj - ii, :])
 
-            # out = self.output_head(node_state_out)
+            out = self.output_head(node_state_out)
             #maybe need to be pinned in gpu or already is
             features_out = out
-            features_out=np.array(features_out)
+            # features_out=np.array(features_out)
             ### make it symmetric
             if self.is_sym:
                 A = torch.tril(A, diagonal=-1)
@@ -557,9 +581,11 @@ class GRANMixtureBernoulli(nn.Module):
                 self.num_canonical_order,
             )
 
-            print(f"feats.shape: {feats.shape}")
+            # print(f"feats.shape: {feats.shape}")
             feats = feats.view(B * N * C, -1)
-            print(f"feats.shape after .view: {feats.shape}")
+            # feats=feats.view()
+            # print(f"feats.shape after .view: {feats.shape}")
+            # print("@" * 80)
 
             mae_loss = loss_fn(feats[node_idx_feat], out)
 
@@ -576,9 +602,12 @@ class GRANMixtureBernoulli(nn.Module):
             A_list = [
                 A[ii, : num_nodes[ii], : num_nodes[ii]] for ii in range(batch_size)
             ]
+
+
             features_out_list = [
                 features_out[ii, : num_nodes[ii], :] for ii in range(batch_size)
             ]
+            # features_out_list=features_out
             return A_list, features_out_list
 
 

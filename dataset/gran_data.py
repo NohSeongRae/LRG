@@ -32,6 +32,10 @@ class GRANData(object):
         self.is_sample_subgraph = config.dataset.is_sample_subgraph
         self.num_subgraph_batch = config.dataset.num_subgraph_batch
         self.is_overwrite_precompute = config.dataset.is_overwrite_precompute
+        if config.dataset.name == "Firenze":
+            self.is_firenze=True
+        else:
+            self.is_firenze=False
 
         if self.is_sample_subgraph:
             assert self.num_subgraph_batch > 0
@@ -58,10 +62,14 @@ class GRANData(object):
             self.config.dataset.save_path = self.save_path
             for index in tqdm(range(self.num_graphs)):
                 G = self.graphs[index]
-                if self.has_nodes_feats:
-                    data = self._get_graph_data(G, node_feats=self.node_feats[index])
+                if self.is_firenze == True:
+                    adj_0 = np.array(nx.to_numpy_array(G))
+                    data=([adj_0], [self.node_feats])
                 else:
-                    data = self._get_graph_data(G)
+                    if self.has_nodes_feats:
+                        data = self._get_graph_data(G, node_feats=self.node_feats[index])
+                    else:
+                        data = self._get_graph_data(G)
                 tmp_path = os.path.join(self.save_path, "{}_{}.p".format(tag, index))
                 pickle.dump(data, open(tmp_path, "wb"))
                 self.file_names += [tmp_path]
@@ -69,7 +77,7 @@ class GRANData(object):
             self.file_names = glob.glob(os.path.join(self.save_path, "*.p"))
 
     def _get_graph_data(self, G, node_feats=None):
-        node_degree_list = [(n, d) for n, d in G.degree()]
+        node_degree_list = [(n, d) for n, d in G.degree()] #((4,7),d)
 
         adj_0 = np.array(nx.to_numpy_array(G))
 
@@ -105,7 +113,7 @@ class GRANData(object):
 
         node_list_bfs = []
         node_list_dfs = []
-        count=1 #debug
+        # count=1 #debug
 
         for ii in range(len(CGs)):
             node_degree_list = [(n, d) for n, d in CGs[ii].degree()]
@@ -119,11 +127,11 @@ class GRANData(object):
             node_list_bfs += list(bfs_tree.nodes())
             node_list_dfs += list(dfs_tree.nodes())
             # print(f"dfs_tree.nodes(): {dfs_tree.nodes()}")
-            print(f"node_degree_list: {node_degree_list}")
+            # print(f"node_degree_list: {node_degree_list}")
 
 
         adj_3 = np.array(nx.to_numpy_array(G, nodelist=node_list_bfs))
-        print(f"adj_3.shape: {adj_3.shape}")
+        # print(f"adj_3.shape: {adj_3.shape}")
         adj_4 = np.array(nx.to_numpy_array(G, nodelist=node_list_dfs))
 
         # print(f"node_feats _ before: {node_feats}")
@@ -131,11 +139,11 @@ class GRANData(object):
             node_list_dfs_s=np.array(node_list_dfs)
             feats_3 = node_feats[node_list_bfs]
             feats_4 = node_feats[node_list_dfs_s[:,0]] # 이 코드가 문제임
-            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
-            if count==1:
-                # print(f"node_feats _ after: {feats_4}")
-                # print(f" dfs, node_list_dfs_s: {node_list_dfs_s}")
-                count+=1
+            # print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+            # if count==1:
+            #     # print(f"node_feats _ after: {feats_4}")
+            #     # print(f" dfs, node_list_dfs_s: {node_list_dfs_s}")
+            #     count+=1
 
 
         ### k-core
@@ -179,7 +187,9 @@ class GRANData(object):
                     node_feats_list = [feats_3]
             elif self.node_order == "DFS":
                 adj_list = [adj_4]
-                if self.node_feats is not None:
+                if self.has_nodes_feats is False:
+                    node_feats_list=[]
+                if (self.node_feats is not None) and (self.has_nodes_feats == True) :
                     node_feats_list = [feats_4]
             elif self.node_order == "k_core":
                 adj_list = [adj_5]
@@ -222,6 +232,7 @@ class GRANData(object):
         tmp = pickle.load(open(self.file_names[index], "rb"))
         if type(tmp) == tuple:
             adj_list, node_feats_list = tmp
+
         else:
             (adj_list,) = (tmp,)
         num_nodes = adj_list[0].shape[0]
@@ -360,7 +371,7 @@ class GRANData(object):
 
             # print(f"node feat list: {node_feats_list}")
 
-            if self.node_feats is not None:
+            if (self.node_feats is not None) and (self.has_nodes_feats is True):
                 data["feats"] = np.stack(node_feats_list, axis=0)
                 # data["feats"] = np.stack(ground_truth_feats, axis=0)
 
@@ -431,23 +442,24 @@ class GRANData(object):
 
 
 
+            if self.has_nodes_feats is True:
+                data["feats"] = torch.from_numpy(
+                    np.stack(
+                        [
+                            np.pad(
+                                bb["feats"],
+                                ((0, 0), (0, pad_size[ii]),(0, 0),(0,0)),
+                                "constant",
+                                constant_values=0.0,
+                            )
+                            for ii, bb in enumerate(batch_pass)
+                        ],
+                        axis=0,
+                    )
+                ).float()
 
-            data["feats"] = torch.from_numpy(
-                np.stack(
-                    [
-                        np.pad(
-                            bb["feats"],
-                            ((0, 0), (0, pad_size[ii]),(0, 0),(0, 0)),
-                            "constant",
-                            constant_values=0.0,
-                        )
-                        for ii, bb in enumerate(batch_pass)
-                    ],
-                    axis=0,
-                )
-            ).float()
-            temp=data["feats"]
-            print(f"collate_fn, data[feats].shape: {temp.shape}")
+                temp=data["feats"]
+                # print(f"collate_fn, data[feats].shape: {temp.shape}")
 
             idx_base = np.array([0] + [bb["num_count"] for bb in batch_pass])
             idx_base = np.cumsum(idx_base)

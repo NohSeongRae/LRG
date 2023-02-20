@@ -10,6 +10,7 @@ from tqdm import tqdm
 import concurrent.futures
 import sys
 
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.utils.data
@@ -66,6 +67,8 @@ def get_graph(adj, feats=None):
     adj = adj[:, ~np.all(adj == 0, axis=0)]
     adj = np.asmatrix(adj)
     G = nx.from_numpy_array(adj)
+    f_d=dict(enumerate(feats))
+    G=nx.set_node_attributes(G, f_d)
     return G
 
 
@@ -103,6 +106,7 @@ class GranRunner(object):
         self.is_single_plot = config.test.is_single_plot
         self.num_gpus = len(self.gpus)
         self.is_shuffle = False
+        self.has_node_feat=config.dataset.has_node_feat
 
         # assert self.use_gpu == True
 
@@ -139,7 +143,7 @@ class GranRunner(object):
         #     self.npr.shuffle(self.graphs)
 
         self.graphs_train = self.graphs[: self.num_train]
-        self.feats_train = self.feats[: self.num_train]
+        self.feats_train = self.feats[: self.num_train] # =self.feats[:1]
         self.graphs_dev = self.graphs[: self.num_dev]
         self.feats_dev = self.feats[: self.num_dev]
         self.graphs_test = self.graphs[self.num_train :]
@@ -272,11 +276,13 @@ class GranRunner(object):
                                 .pin_memory()
                                 .to(gpu_id, non_blocking=True)
                             )
-                            data["feats"] = (
-                                batch_data[dd][ff]["feats"]
-                                .pin_memory()
-                                .to(gpu_id, non_blocking=True)
-                            )
+                            if self.has_node_feat is True:
+
+                                data["feats"] = (
+                                    batch_data[dd][ff]["feats"]
+                                    .pin_memory()
+                                    .to(gpu_id, non_blocking=True)
+                                )
 
                             data["edges"] = (
                                 batch_data[dd][ff]["edges"]
@@ -413,20 +419,41 @@ class GranRunner(object):
                     A_pred += [aa.data.cpu().numpy() for aa in A_tmp]
                     feats_pred += [aa.data.cpu().numpy() for aa in feats_tmp]
                     num_nodes_pred += [aa.shape[0] for aa in A_tmp]
+                    dat=[A_pred, feats_pred]
 
+            save_name = os.path.join(self.config.save_dir, "out_graphs.pickle")
+            with open(save_name, "wb") as outfile:
+                pickle.dump(
+                    dat, outfile,
+                )
             logger.info(
                 "Average test time per mini-batch = {}".format(np.mean(gen_run_time))
             )
 
-            graphs_gen = [
-                get_graph(A_pred[i], feats=feats_pred[i]) for i in range(len(A_pred))
-            ]
+            # graphs_gen = [
+            #     get_graph(A_pred[i], feats=feats_pred[i]) for i in range(len(A_pred))
+            # ]
+        t_A=A_pred[0]
+        t_F=feats_pred[0]
+        print(f"t_F: {t_F}")
+        G_1 = nx.from_numpy_array(t_A)
 
-        save_name = os.path.join(self.config.save_dir, "out_feats.pickle")
-        with open(save_name, "wb") as outfile:
-            pickle.dump(
-                feats_pred, outfile,
-            )
+        pos_dict = {}
+
+        for i in range(len(t_F[0])):
+            pos_dict[i] = (t_F[0][i][0][0], t_F[0][i][0][1])
+
+        pos = pos_dict
+        nx.draw_networkx_nodes(G_1, pos, node_size=0.5, node_color='black')
+        nx.draw_networkx_edges(G_1, pos, alpha=0.5, width=1)
+        plt.axis('off')
+        plt.show()
+        save_path = "D:/LRG/datasets_dev/cities/norm/" + "Firenze_t1" + ".png"
+        plt.savefig(save_path)
+
+
+
+
 
         ### Visualize Generated Graphs
         if self.is_vis:
@@ -484,6 +511,22 @@ class GranRunner(object):
                     is_single=True,
                     layout="spring",
                 )
+
+        # G_ = nx.from_numpy_array(A_)
+        #
+        # pos_dict = {}
+        #
+        # for i in range(len(node_feats[0])):
+        #     pos_dict[i] = (node_feats[0][i][0][0], node_feats[0][i][0][1])
+        #
+        # pos = pos_dict
+        # nx.draw_networkx_nodes(G_, pos, node_size=0.5, node_color='black')
+        # nx.draw_networkx_edges(G_, pos, alpha=0.5, width=1)
+        # plt.axis('off')
+        # plt.show()
+        # save_path = "./datasets_dev/cities/" + "Firenze" + ".png"
+        # plt.savefig(save_path)
+
 
         sys.exit(0) # skip evaluation
 
