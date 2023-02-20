@@ -1,17 +1,18 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-import numpy as np
-import pandas as pd
-from PIL import Image
 
-from dataloader_ import get_whole_graph
+from data_sort import get_whole_graph
 
-G_, A_, node_feats = get_whole_graph("Firenze", "BFS")
+G_, adj_, feature_list = get_whole_graph("Firenze")
+
+G_ = nx.from_numpy_array(adj_)
 
 pos_dict = {}
 
-for i in range(len(node_feats[0])):
-    pos_dict[i] = (node_feats[0][i][0][0], node_feats[0][i][0][1])
+for i in range(len(feature_list)):
+    pos_dict[list(G_.nodes)[i]] = (feature_list[i][0], feature_list[i][1])
+
+
 
 pos = pos_dict
 nx.draw_networkx_nodes(G_, pos, node_size=0.5, node_color='black')
@@ -20,4 +21,3 @@ plt.axis('off')
 plt.show()
 save_path = "./datasets/cities/" + "Firenze" + ".png"
 plt.savefig(save_path)
-
