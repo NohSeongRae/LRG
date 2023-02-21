@@ -21,7 +21,7 @@ dataset:
   is_sample_subgraph: true # set to true if you want to sample subgraphs
   is_overwrite_precompute: true
   city_level : 1
-  base_path : "/home/iiixr/LRG/datasets_dev/cities/norm_"  #D:/LRG/datasets_dev/cities/norm_
+  base_path : "D:/LRG/datasets_dev/cities/norm_"  #"D:/LRG/datasets_dev/cities/norm_"   "/home/iiixr/LRG/datasets_dev/cities/norm_"
 model:
   name: GRANMixtureBernoulli
   num_mix_component: 20

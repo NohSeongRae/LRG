@@ -798,9 +798,9 @@ def create_graphs(graph_type,level,base_dir, data_dir="data", noise=10.0, seed=1
         if level==5:
             graphs, adj_, feats = get_whole_graph("Firenze",base_dir, level)
         elif level==4:
-            graphs, adj_, feats =get_whole_graph_4("Firenze",base_dir)
+            graphs, adj_, feats =get_whole_graph_4("Firenze",base_dir, level)
         elif level==1:
-            graphs, adj_, feats=get_whole_graph_1("Firenze",base_dir)
+            graphs, adj_, feats=get_whole_graph_1("Firenze",base_dir, level)
 
 
 

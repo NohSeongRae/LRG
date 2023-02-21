@@ -117,7 +117,7 @@ class GranRunner(object):
         ### load graphs
 
         self.graphs, self.feats = create_graphs(
-            config.dataset.name,config.dataset.city_level, data_dir=config.dataset.data_path
+            config.dataset.name,config.dataset.city_level,config.dataset.base_path, data_dir=config.dataset.data_path
         )
 
         self.train_ratio = config.dataset.train_ratio
