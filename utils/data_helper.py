@@ -25,11 +25,11 @@ __all__ = [
 from utils.level4.data_sort import get_whole_graph_4
 from utils.level1.data_sort import get_whole_graph_1
 
-def one_hot_encoding(city_name):
+def one_hot_encoding(city_name,base_dir,level):
     city_name_file = (city_name.lower()).replace(" ", "")
-    edge_norm_file_name = "D:/LRG/datasets_dev/cities/norm/" + city_name_file + "_edge_norm_ver1_highway.csv"
-    node_norm_file_name = "D:/LRG/datasets_dev/cities/norm/" + city_name_file + "_node_norm.csv"
-    node_highway_file_name = "D:/LRG/datasets_dev/cities/norm/" + city_name_file + "_node_norm_highway.csv"
+    edge_norm_file_name = base_dir +str(level)+"/"+ city_name_file + "_edge_norm_ver1_highway.csv"
+    node_norm_file_name = base_dir+str(level)+"/" + city_name_file + "_node_norm.csv"
+    node_highway_file_name = base_dir +str(level)+"/"+ city_name_file + "_node_norm_highway.csv"
 
     edge_data = pd.read_csv(edge_norm_file_name) # atlanta_edge_norm_ver1_highway
     highway = list(edge_data['highway'])
@@ -535,8 +535,8 @@ def get_graph_data(sort_dict, g, feature_list, num, p_=None, prior_node="None"):
 
     return feats_1, adj_1, prior_node, sort_dict_reverse
 
-def get_whole_graph(city_name):
-    sort_dict, g, feature_list, P_ = one_hot_encoding(city_name)
+def get_whole_graph(city_name,base_dir, level):
+    sort_dict, g, feature_list, P_ = one_hot_encoding(city_name,base_dir, level)
 
     feats_1, adj_1, prior_order1, s1 = get_graph_data(sort_dict, g[0], feature_list[0], 1)
     feats_2, adj_2, prior_order2, s2 = get_graph_data(sort_dict, g[1], feature_list[1], 2, P_, prior_order1)
@@ -761,7 +761,7 @@ def graph_load_batch(
     return graphs
 
 
-def create_graphs(graph_type,level, data_dir="data", noise=10.0, seed=1234):
+def create_graphs(graph_type,level,base_dir, data_dir="data", noise=10.0, seed=1234):
     ### load datasets
     graphs = []
     feats = []
@@ -796,11 +796,11 @@ def create_graphs(graph_type,level, data_dir="data", noise=10.0, seed=1234):
 
     elif graph_type == 'Firenze':
         if level==5:
-            graphs, adj_, feats = get_whole_graph("Firenze")
+            graphs, adj_, feats = get_whole_graph("Firenze",base_dir, level)
         elif level==4:
-            graphs, adj_, feats =get_whole_graph_4("Firenze")
+            graphs, adj_, feats =get_whole_graph_4("Firenze",base_dir)
         elif level==1:
-            graphs, adj_, feats=get_whole_graph_1("Firenze")
+            graphs, adj_, feats=get_whole_graph_1("Firenze",base_dir)
 
 
 

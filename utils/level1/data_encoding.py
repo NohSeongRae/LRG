@@ -4,11 +4,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import sparse
 
-def one_hot_encoding(city_name):
+def one_hot_encoding(city_name,base_dir,level):
     city_name_file = (city_name.lower()).replace(" ", "")
-    edge_norm_file_name = "./datasets/cities/norm/" + city_name_file + "_edge_norm_ver1_highway.csv"
-    node_norm_file_name = "./datasets/cities/norm/" + city_name_file + "_node_norm.csv"
-    node_highway_file_name = "./datasets/cities/norm/" + city_name_file + "_node_norm_highway.csv"
+    edge_norm_file_name = base_dir + str(level) + "/" + city_name_file + "_edge_norm_ver1_highway.csv"
+    node_norm_file_name = base_dir + str(level) + "/" + city_name_file + "_node_norm.csv"
+    node_highway_file_name = base_dir + str(level) + "/" + city_name_file + "_node_norm_highway.csv"
 
     edge_data = pd.read_csv(edge_norm_file_name) # atlanta_edge_norm_ver1_highway
     highway = list(edge_data['highway'])

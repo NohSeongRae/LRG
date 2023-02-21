@@ -21,6 +21,7 @@ dataset:
   is_sample_subgraph: true # set to true if you want to sample subgraphs
   is_overwrite_precompute: true
   city_level : 1
+  base_path : "/home/iiixr/LRG/datasets_dev/cities/norm_"
 model:
   name: GRANMixtureBernoulli
   num_mix_component: 20
@@ -41,7 +42,7 @@ train:
   lr_decay: 0.1
   lr_decay_epoch: [100000000] # no decay
   num_workers: 0
-  max_epoch: 20000
+  max_epoch: 50000
   batch_size: 1
   display_iter: 10
   snapshot_epoch: 100
@@ -51,9 +52,9 @@ train:
   momentum: 0.9
   shuffle: true
   is_resume: false
-  resume_epoch: 5000
-  resume_dir: # exp/GRAN/your_exp_folder
-  resume_model: model_snapshot_0005000.pth
+  resume_epoch: 12700
+  resume_dir:  ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-21-15-21-32_1790746
+  resume_model: model_snapshot_0012700.pth
 test:
   batch_size: 1
   num_workers: 0
@@ -64,8 +65,11 @@ test:
   num_vis: 20
   vis_num_row: 3 # visualize `num_vis` samples in `vis_num_row` rows
   better_vis: true
-  test_model_dir: ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-20-21-54-27_341064
-  test_model_name: model_snapshot_0007300.pth
+  test_model_dir: ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-21-15-51-46_1791411
+  test_model_name: model_snapshot_0029600.pth
 
   #first base:
   #second base: ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-20-21-54-27_341064 | model_snapshot_0007300.pth
+  #third base: ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-21-04-09-53_1780435 | model_snapshot_0020000.pth
+  #fourth base: ./exp/GRAN/GRANMixtureBernoulli_Firenze_2023-Feb-21-15-51-46_1791411 | model_snapshot_0029600.pth
+  #19200

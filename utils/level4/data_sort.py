@@ -5,11 +5,11 @@ import pandas as pd
 import numpy as np
 
 
-def one_hot_encoding_4(city_name):
+def one_hot_encoding_4(city_name,base_dir,level):
     city_name_file = (city_name.lower()).replace(" ", "")
-    edge_norm_file_name = "D:/LRG/datasets_dev/cities/norm_4/" + city_name_file + "_edge_norm_ver1_highway.csv"
-    node_norm_file_name = "D:/LRG/datasets_dev/cities/norm_4/" + city_name_file + "_node_norm.csv"
-    node_highway_file_name = "D:/LRG/datasets_dev/cities/norm_4/" + city_name_file + "_node_norm_highway.csv"
+    edge_norm_file_name = base_dir + str(level) + "/" + city_name_file + "_edge_norm_ver1_highway.csv"
+    node_norm_file_name = base_dir + str(level) + "/" + city_name_file + "_node_norm.csv"
+    node_highway_file_name = base_dir + str(level) + "/" + city_name_file + "_node_norm_highway.csv"
 
     edge_data = pd.read_csv(edge_norm_file_name) # atlanta_edge_norm_ver1_highway
     highway = list(edge_data['highway'])
@@ -433,8 +433,8 @@ def get_graph_data_4(sort_dict, g, feature_list, num, p_=None, prior_node="None"
 
     return feats_1, adj_1, prior_node, sort_dict_reverse
 
-def get_whole_graph_4(city_name):
-    sort_dict, g, feature_list, P_ = one_hot_encoding_4(city_name)
+def get_whole_graph_4(city_name,base_dir, level):
+    sort_dict, g, feature_list, P_ = one_hot_encoding_4(city_name,base_dir, level)
 
     feats_1, adj_1, prior_order1, s1 = get_graph_data_4(sort_dict, g[0], feature_list[0], 1)
     feats_2, adj_2, prior_order2, s2 = get_graph_data_4(sort_dict, g[1], feature_list[1], 2, P_, prior_order1)

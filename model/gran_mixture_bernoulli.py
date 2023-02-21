@@ -340,9 +340,9 @@ class GRANMixtureBernoulli(nn.Module):
             node_feat[node_idx_feat], edges, edge_feat=att_edge_feat
         )
         # print(f"node_state.shape, after GNN decoder: {node_state.shape}")
-        node_feat_=torch.sum(node_state, 0)
+        # node_feat_=torch.sum(node_state, 0)
 
-        coords = self.output_head(node_feat_)
+        coords = self.output_head(node_feat[node_idx_feat])
 
 
         # print(f"out.shape (output coordinates), after output_head decoder: {coords.shape}")
