@@ -243,6 +243,8 @@ class GRANMixtureBernoulli(nn.Module):
             nn.Linear(self.hidden_dim, self.coord_feat_dim),  # fix magic number
         )
 
+
+
         ### Loss functions
         pos_weight = torch.ones([1]) * self.edge_weight
         self.adj_loss_func = nn.BCEWithLogitsLoss(
@@ -338,8 +340,10 @@ class GRANMixtureBernoulli(nn.Module):
             node_feat[node_idx_feat], edges, edge_feat=att_edge_feat
         )
         # print(f"node_state.shape, after GNN decoder: {node_state.shape}")
+        node_feat_=torch.sum(node_state, 0)
 
-        coords = self.output_head(node_feat[node_idx_feat])
+        coords = self.output_head(node_feat_)
+
 
         # print(f"out.shape (output coordinates), after output_head decoder: {coords.shape}")
 
@@ -468,9 +472,9 @@ class GRANMixtureBernoulli(nn.Module):
                 node_state_out = self.decoder(
                     node_state_in.view(-1, H), edges, edge_feat=att_edge_feat
                 )
-                coords = self.output_head(node_state_out)
-                coords=coords.transpose(0,1)
-                coords=torch.mean(coords, 1)
+                node_state_out_=torch.sum(node_state_out,0)
+                coords = self.output_head(node_state_out_)
+
                 coords=coords.view(1,1,2)
                 # print(f"node_state_out.shape: {node_state_out.shape}")
                 # print(f"coords.shape: {coords.shape}")

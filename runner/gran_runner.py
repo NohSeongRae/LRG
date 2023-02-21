@@ -107,6 +107,7 @@ class GranRunner(object):
         self.num_gpus = len(self.gpus)
         self.is_shuffle = False
         self.has_node_feat=config.dataset.has_node_feat
+        self.city_level=config.dataset.city_level
 
         # assert self.use_gpu == True
 
@@ -447,7 +448,7 @@ class GranRunner(object):
         nx.draw_networkx_nodes(G_1, pos, node_size=0.5, node_color='black')
         nx.draw_networkx_edges(G_1, pos, alpha=0.5, width=1)
         plt.axis('off')
-        save_path = "D:/LRG/datasets_dev/cities/norm/" + "Firenze_t2" + ".png"
+        save_path = "D:/LRG/datasets_dev/cities/norm"+"_"+self.city_level+"/" + "Firenze_t2" + ".png"
         plt.savefig(save_path)
         plt.show()
 

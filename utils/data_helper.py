@@ -23,6 +23,7 @@ __all__ = [
     "create_graphs",
 ]
 from utils.level4.data_sort import get_whole_graph_4
+from utils.level1.data_sort import get_whole_graph_1
 
 def one_hot_encoding(city_name):
     city_name_file = (city_name.lower()).replace(" ", "")
@@ -797,8 +798,9 @@ def create_graphs(graph_type,level, data_dir="data", noise=10.0, seed=1234):
         if level==5:
             graphs, adj_, feats = get_whole_graph("Firenze")
         elif level==4:
-
             graphs, adj_, feats =get_whole_graph_4("Firenze")
+        elif level==1:
+            graphs, adj_, feats=get_whole_graph_1("Firenze")
 
 
 
